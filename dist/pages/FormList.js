@@ -59,7 +59,7 @@ export function FormList({ onNavigate }) {
                             hideable: false,
                             render: (_, row) => (_jsxs("div", { className: "flex items-center justify-end gap-2", children: [_jsx(Button, { variant: "ghost", size: "sm", onClick: () => navigate(`/forms/${row.id}`), children: _jsx(Settings, { size: 16 }) }), _jsx(Button, { variant: "ghost", size: "sm", disabled: mutating, onClick: () => handleDelete(row.id, row.name), children: _jsx(Trash2, { size: 16, className: "text-red-500" }) })] })),
                         },
-                    ], data: rows, emptyMessage: "No forms yet", loading: loading, searchable: true, pageSize: 25, onRefresh: refresh }) })] }));
+                    ], data: rows, emptyMessage: "No forms yet", loading: loading, searchable: true, pageSize: 25 }) })] }));
 }
 export default FormList;
 //# sourceMappingURL=FormList.js.map

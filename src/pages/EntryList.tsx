@@ -130,7 +130,6 @@ export function EntryList({ id, onNavigate }: Props) {
           loading={loading}
           searchable
           pageSize={25}
-          onRefresh={refresh}
         />
       </Card>
     </Page>
