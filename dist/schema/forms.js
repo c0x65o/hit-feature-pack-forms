@@ -1,0 +1,87 @@
+import { index, pgTable, varchar, text, boolean, integer, jsonb, timestamp, } from 'drizzle-orm/pg-core';
+/**
+ * Runtime Forms schema
+ *
+ * This is a fixed schema that supports unlimited end-user forms without migrations.
+ */
+export const forms = pgTable('forms', {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    slug: varchar('slug', { length: 255 }).notNull(),
+    description: text('description'),
+    // Scope:
+    // - private: only owner can see entries
+    // - project: any authenticated user can see entries
+    scope: varchar('scope', { length: 32 }).notNull().default('private'),
+    isPublished: boolean('is_published').notNull().default(false),
+    // Navigation config for published forms
+    navShow: boolean('nav_show').notNull().default(true),
+    navPlacement: varchar('nav_placement', { length: 32 }).notNull().default('under_forms'), // under_forms | top_level
+    navGroup: varchar('nav_group', { length: 64 }).notNull().default('main'),
+    navWeight: integer('nav_weight').notNull().default(500),
+    navLabel: varchar('nav_label', { length: 255 }),
+    navIcon: varchar('nav_icon', { length: 64 }),
+    ownerUserId: varchar('owner_user_id', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+export const formVersions = pgTable('form_versions', {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    formId: varchar('form_id', { length: 255 }).notNull(),
+    version: integer('version').notNull(),
+    status: varchar('status', { length: 32 }).notNull().default('draft'), // draft | published
+    // Optional list view configuration
+    listConfig: jsonb('list_config'),
+    createdByUserId: varchar('created_by_user_id', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+export const formFields = pgTable('form_fields', {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    formId: varchar('form_id', { length: 255 }).notNull(),
+    versionId: varchar('version_id', { length: 255 }).notNull(),
+    key: varchar('key', { length: 255 }).notNull(),
+    label: varchar('label', { length: 255 }).notNull(),
+    type: varchar('type', { length: 64 }).notNull(),
+    order: integer('order').notNull().default(0),
+    hidden: boolean('hidden').notNull().default(false),
+    required: boolean('required').notNull().default(false),
+    // Generic config for field types:
+    // - select options
+    // - validations
+    // - reference config
+    config: jsonb('config'),
+    defaultValue: jsonb('default_value'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+export const formEntries = pgTable('form_entries', {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    formId: varchar('form_id', { length: 255 }).notNull(),
+    // Entry visibility is governed by forms.scope + createdByUserId
+    createdByUserId: varchar('created_by_user_id', { length: 255 }).notNull(),
+    data: jsonb('data').notNull(),
+    /**
+     * Denormalized search string, maintained by the API on create/update.
+     *
+     * V1 uses a simple ILIKE/LIKE query. If you later enable FTS, you can add:
+     * - a computed tsvector column, or
+     * - a GIN index on to_tsvector(search_text)
+     */
+    searchText: text('search_text'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+    formIdIdx: index('form_entries_form_id_idx').on(table.formId),
+    searchTextIdx: index('form_entries_search_text_idx').on(table.searchText),
+}));
+export const formEntryHistory = pgTable('form_entry_history', {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    entryId: varchar('entry_id', { length: 255 }).notNull(),
+    formId: varchar('form_id', { length: 255 }).notNull(),
+    version: integer('version').notNull(),
+    changedByUserId: varchar('changed_by_user_id', { length: 255 }).notNull(),
+    changeType: varchar('change_type', { length: 32 }).notNull(), // update | delete
+    snapshot: jsonb('snapshot').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+//# sourceMappingURL=forms.js.map

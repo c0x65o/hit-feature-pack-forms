@@ -1,0 +1,133 @@
+'use client';
+
+import React from 'react';
+import { ArrowLeft, Edit } from 'lucide-react';
+import { useUi } from '@hit/ui-kit';
+import { useEntry, useForm } from '../hooks/useForms';
+
+interface Props {
+  id?: string; // formId
+  entryId?: string;
+  onNavigate?: (path: string) => void;
+}
+
+export function EntryDetail({ id, entryId, onNavigate }: Props) {
+  const { Page, Card, Button, Alert } = useUi();
+  const formId = id as string;
+
+  const { form, version } = useForm(formId);
+  const { entry, loading, error } = useEntry(formId, entryId);
+
+  const navigate = (path: string) => {
+    if (onNavigate) onNavigate(path);
+    else if (typeof window !== 'undefined') window.location.href = path;
+  };
+
+  const fields = (version?.fields || [])
+    .filter((f) => !f.hidden)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  if (loading) {
+    return (
+      <Page title="Loading...">
+        <Card>
+          <div className="py-10">Loading…</div>
+        </Card>
+      </Page>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <Page
+        title="Entry not found"
+        actions={
+          <Button variant="secondary" onClick={() => navigate(`/forms/${formId}/entries`)}>
+            <ArrowLeft size={16} className="mr-2" />
+            Back
+          </Button>
+        }
+      >
+        <Alert variant="error" title="Error">
+          {error?.message || 'Entry not found'}
+        </Alert>
+      </Page>
+    );
+  }
+
+  return (
+    <Page
+      title={form?.name ? `${form.name} — Entry` : 'Entry'}
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => navigate(`/forms/${formId}/entries`)}>
+            <ArrowLeft size={16} className="mr-2" />
+            Back
+          </Button>
+          <Button variant="primary" onClick={() => navigate(`/forms/${formId}/entries/${entry.id}/edit`)}>
+            <Edit size={16} className="mr-2" />
+            Edit
+          </Button>
+        </div>
+      }
+    >
+      <Card>
+        <div className="space-y-4">
+          {fields.map((f) => {
+            const v = (entry.data || {})[f.key];
+            const isRef = f.type === 'reference';
+            return (
+              <div key={f.key}>
+                <div className="text-sm text-gray-500">{f.label}</div>
+                <div className="text-base">
+                  {v === undefined || v === null ? (
+                    ''
+                  ) : isRef ? (
+                    Array.isArray(v) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {v.map((r: any, idx: number) => (
+                          <a
+                            key={`${r?.entryId || idx}-${idx}`}
+                            className="text-sm hover:text-blue-500 underline"
+                            href={`/forms/${r?.formId || ''}/entries/${r?.entryId || ''}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (r?.formId && r?.entryId) {
+                                navigate(`/forms/${r.formId}/entries/${r.entryId}`);
+                              }
+                            }}
+                          >
+                            {r?.label || r?.entryId || 'Reference'}
+                          </a>
+                        ))}
+                      </div>
+                    ) : typeof v === 'object' ? (
+                      <a
+                        className="text-sm hover:text-blue-500 underline"
+                        href={`/forms/${(v as any).formId}/entries/${(v as any).entryId}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if ((v as any).formId && (v as any).entryId) {
+                            navigate(`/forms/${(v as any).formId}/entries/${(v as any).entryId}`);
+                          }
+                        }}
+                      >
+                        {(v as any).label || (v as any).entryId}
+                      </a>
+                    ) : (
+                      String(v)
+                    )
+                  ) : (
+                    String(v)
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </Page>
+  );
+}
+
+export default EntryDetail;

@@ -1,0 +1,45 @@
+/**
+ * @hit/feature-pack-forms
+ *
+ * Runtime Forms feature pack: form builder + CRUD entries + search + reference linking.
+ *
+ * Pages are exported individually for optimal tree-shaking.
+ */
+
+// Pages
+export {
+  FormList,
+  FormListPage,
+  FormBuilder,
+  FormBuilderPage,
+  EntryList,
+  EntryListPage,
+  EntryDetail,
+  EntryDetailPage,
+  EntryEdit,
+  EntryEditPage,
+} from './pages/index';
+
+// Hooks
+export * from './hooks/index';
+
+// Navigation config
+export { navContributions as nav } from './nav';
+
+// Schema exports
+export {
+  forms,
+  formVersions,
+  formFields,
+  formEntries,
+  formEntryHistory,
+  type Form,
+  type FormVersion,
+  type FormField,
+  type FormEntry,
+  type FormEntryHistory,
+  type InsertForm,
+  type InsertFormVersion,
+  type InsertFormField,
+  type InsertFormEntry,
+} from './schema/forms';

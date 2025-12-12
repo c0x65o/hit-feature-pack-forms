@@ -1,0 +1,92 @@
+# Feature Pack: forms
+# Runtime-configurable custom forms (builder + CRUD entries)
+
+name: forms
+version: 0.1.0
+description: Runtime Forms feature pack with builder + CRUD entries + search + reference linking
+
+# Route definitions - mapped to React components
+routes:
+  - path: /forms
+    page: FormList
+    roles: []
+  - path: /forms/new
+    page: FormBuilder
+    roles: []
+  - path: /forms/[id]
+    page: FormBuilder
+    roles: []
+  - path: /forms/[id]/entries
+    page: EntryList
+    roles: []
+  - path: /forms/[id]/entries/new
+    page: EntryEdit
+    roles: []
+  - path: /forms/[id]/entries/[entryId]
+    page: EntryDetail
+    roles: []
+  - path: /forms/[id]/entries/[entryId]/edit
+    page: EntryEdit
+    roles: []
+
+# Navigation contributions
+nav:
+  - id: forms
+    label: Forms
+    path: /forms
+    icon: ClipboardList
+    group: main
+    showWhen: authenticated
+    weight: 160
+
+# Schema contributions (Drizzle tables)
+schema:
+  source: src/schema/forms.ts
+  exports: [forms, formVersions, formFields, formEntries, formEntryHistory]
+
+# API routes expected by this pack
+# NOTE: generator will use this to create /app/api/forms/** files.
+api:
+  routes:
+    - path: /api/forms
+      methods: [GET, POST]
+      template: forms_list_create
+    - path: /api/forms/[id]
+      methods: [GET, PUT, DELETE]
+      template: forms_get_update_delete
+    - path: /api/forms/[id]/publish
+      methods: [POST]
+      template: forms_publish
+    - path: /api/forms/[id]/unpublish
+      methods: [POST]
+      template: forms_unpublish
+    - path: /api/forms/[id]/entries
+      methods: [GET, POST]
+      template: entries_list_create
+    - path: /api/forms/[id]/entries/[entryId]
+      methods: [GET, PUT, DELETE]
+      template: entries_get_update_delete
+
+requires:
+  modules: []
+
+dependencies:
+  feature_packs:
+    - name: dashboard-shell
+
+# Configurable options (currently kept minimal; scope is stored per-form at runtime)
+config:
+  schema:
+    default_scope:
+      type: string
+      default: private
+      enum: [private, project]
+      description: "Default scope for newly created forms. private: owner-only, project: all authenticated users."
+    enable_history:
+      type: boolean
+      default: true
+      description: "Write entry snapshots on update/delete."
+    enable_reference_fields:
+      type: boolean
+      default: true
+      description: "Enable reference field type and picker UI."
