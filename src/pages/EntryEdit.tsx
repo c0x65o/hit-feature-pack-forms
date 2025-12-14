@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
-import { useUi } from '@hit/ui-kit';
+import { ArrowLeft, Save, ClipboardList, FileText } from 'lucide-react';
+import { useUi, type BreadcrumbItem } from '@hit/ui-kit';
 import { useEntry, useEntryMutations, useForm } from '../hooks/useForms';
 
 interface Props {
@@ -297,15 +297,21 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
     );
   }
 
+  const breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Forms', href: '/forms', icon: <ClipboardList size={14} /> },
+    ...(form ? [{ label: form.name, href: `/forms/${formId}`, icon: <FileText size={14} /> }] : []),
+    { label: 'Entries', href: `/forms/${formId}/entries` },
+    ...(!isNew && entryId ? [{ label: `Entry ${entryId.slice(0, 8)}`, href: `/forms/${formId}/entries/${entryId}` }] : []),
+    { label: isNew ? 'New' : 'Edit' },
+  ];
+
   return (
     <Page
       title={form?.name ? `${form.name} — ${isNew ? 'New' : 'Edit'} Entry` : isNew ? 'New Entry' : 'Edit Entry'}
+      breadcrumbs={breadcrumbs}
+      onNavigate={navigate}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/forms/${formId}/entries`)}>
-            <ArrowLeft size={16} className="mr-2" />
-            Back
-          </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={saving}>
             <Save size={16} className="mr-2" />
             {isNew ? 'Create' : 'Save'}

@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { ArrowLeft, Edit } from 'lucide-react';
-import { useUi } from '@hit/ui-kit';
+import { ArrowLeft, Edit, ClipboardList, FileText } from 'lucide-react';
+import { useUi, type BreadcrumbItem } from '@hit/ui-kit';
 import { useEntry, useForm } from '../hooks/useForms';
 
 interface Props {
@@ -55,15 +55,20 @@ export function EntryDetail({ id, entryId, onNavigate }: Props) {
     );
   }
 
+  const breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Forms', href: '/forms', icon: <ClipboardList size={14} /> },
+    ...(form ? [{ label: form.name, href: `/forms/${formId}`, icon: <FileText size={14} /> }] : []),
+    { label: 'Entries', href: `/forms/${formId}/entries` },
+    { label: `Entry ${entry.id.slice(0, 8)}` },
+  ];
+
   return (
     <Page
       title={form?.name ? `${form.name} — Entry` : 'Entry'}
+      breadcrumbs={breadcrumbs}
+      onNavigate={navigate}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => navigate(`/forms/${formId}/entries`)}>
-            <ArrowLeft size={16} className="mr-2" />
-            Back
-          </Button>
           <Button variant="primary" onClick={() => navigate(`/forms/${formId}/entries/${entry.id}/edit`)}>
             <Edit size={16} className="mr-2" />
             Edit

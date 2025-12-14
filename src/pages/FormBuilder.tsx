@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Plus, Save, UploadCloud } from 'lucide-react';
-import { useUi } from '@hit/ui-kit';
+import { ArrowLeft, Plus, Save, UploadCloud, ClipboardList, FileText } from 'lucide-react';
+import { useUi, type BreadcrumbItem } from '@hit/ui-kit';
 import {
   FieldType,
   FormScope,
@@ -210,16 +210,20 @@ export function FormBuilder({ id, onNavigate }: Props) {
     );
   }
 
+  const breadcrumbs: BreadcrumbItem[] = [
+    { label: 'Forms', href: '/forms', icon: <ClipboardList size={14} /> },
+    ...(!isNew && form ? [{ label: form.name, icon: <FileText size={14} /> }] : []),
+    { label: isNew ? 'New' : 'Edit' },
+  ];
+
   return (
     <Page
       title={isNew ? 'New Form' : `Edit Form`}
       description={isNew ? 'Create a new runtime form' : form?.isPublished ? 'Published form' : 'Draft form'}
+      breadcrumbs={breadcrumbs}
+      onNavigate={navigate}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => navigate('/forms')}>
-            <ArrowLeft size={16} className="mr-2" />
-            Back
-          </Button>
           {!isNew && (
             <Button variant="secondary" onClick={() => navigate(`/forms/${id}/entries`)}>
               View Entries

@@ -1,6 +1,6 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { ArrowLeft, Edit } from 'lucide-react';
+import { ArrowLeft, Edit, ClipboardList, FileText } from 'lucide-react';
 import { useUi } from '@hit/ui-kit';
 import { useEntry, useForm } from '../hooks/useForms';
 export function EntryDetail({ id, entryId, onNavigate }) {
@@ -23,7 +23,13 @@ export function EntryDetail({ id, entryId, onNavigate }) {
     if (error || !entry) {
         return (_jsx(Page, { title: "Entry not found", actions: _jsxs(Button, { variant: "secondary", onClick: () => navigate(`/forms/${formId}/entries`), children: [_jsx(ArrowLeft, { size: 16, className: "mr-2" }), "Back"] }), children: _jsx(Alert, { variant: "error", title: "Error", children: error?.message || 'Entry not found' }) }));
     }
-    return (_jsx(Page, { title: form?.name ? `${form.name} — Entry` : 'Entry', actions: _jsxs("div", { className: "flex items-center gap-2", children: [_jsxs(Button, { variant: "secondary", onClick: () => navigate(`/forms/${formId}/entries`), children: [_jsx(ArrowLeft, { size: 16, className: "mr-2" }), "Back"] }), _jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/${entry.id}/edit`), children: [_jsx(Edit, { size: 16, className: "mr-2" }), "Edit"] })] }), children: _jsx(Card, { children: _jsx("div", { className: "space-y-4", children: fields.map((f) => {
+    const breadcrumbs = [
+        { label: 'Forms', href: '/forms', icon: _jsx(ClipboardList, { size: 14 }) },
+        ...(form ? [{ label: form.name, href: `/forms/${formId}`, icon: _jsx(FileText, { size: 14 }) }] : []),
+        { label: 'Entries', href: `/forms/${formId}/entries` },
+        { label: `Entry ${entry.id.slice(0, 8)}` },
+    ];
+    return (_jsx(Page, { title: form?.name ? `${form.name} — Entry` : 'Entry', breadcrumbs: breadcrumbs, onNavigate: navigate, actions: _jsx("div", { className: "flex items-center gap-2", children: _jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/${entry.id}/edit`), children: [_jsx(Edit, { size: 16, className: "mr-2" }), "Edit"] }) }), children: _jsx(Card, { children: _jsx("div", { className: "space-y-4", children: fields.map((f) => {
                     const v = (entry.data || {})[f.key];
                     const isRef = f.type === 'reference';
                     return (_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-500", children: f.label }), _jsx("div", { className: "text-base", children: v === undefined || v === null ? ('') : isRef ? (Array.isArray(v) ? (_jsx("div", { className: "flex flex-wrap gap-2", children: v.map((r, idx) => (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: `/forms/${r?.formId || ''}/entries/${r?.entryId || ''}`, onClick: (e) => {
