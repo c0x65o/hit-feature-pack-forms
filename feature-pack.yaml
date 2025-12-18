@@ -2,7 +2,6 @@
 # Runtime-configurable custom forms (builder + CRUD entries)
 
 name: forms
-version: 0.1.0
 description: Runtime Forms feature pack with builder + CRUD entries + search + reference linking
 
 # Route definitions - mapped to React components
