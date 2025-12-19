@@ -1,9 +1,53 @@
 // src/server/api/entries.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { forms, formVersions, formFields, formEntries } from '@/lib/feature-pack-schemas';
-import { and, asc, desc, eq, like, sql, type AnyColumn } from 'drizzle-orm';
-import { getUserId } from '../auth';
+import { forms, formVersions, formFields, formEntries, formsAcls } from '@/lib/feature-pack-schemas';
+import { and, asc, desc, eq, like, or, sql, type AnyColumn } from 'drizzle-orm';
+import { extractUserFromRequest } from '../auth';
+import { FORM_PERMISSIONS } from '../../schema/forms';
+
+/**
+ * Check if user can access a form (owner, admin, or has ACL entry with required permission)
+ */
+async function checkFormAccess(
+  db: ReturnType<typeof getDb>,
+  formId: string,
+  userId: string,
+  roles: string[] = [],
+  requiredPermission?: string
+): Promise<boolean> {
+  // Check if user is owner
+  const [form] = await db.select().from(forms).where(eq(forms.id, formId)).limit(1);
+  if (!form) return false;
+  if (form.ownerUserId === userId) return true;
+
+  // Check if user is admin
+  if (roles.includes('admin') || roles.includes('Admin')) return true;
+
+  // Check ACL entries
+  const principalIds = [userId, ...roles].filter(Boolean);
+  if (principalIds.length === 0) return false;
+
+  const aclEntries = await db
+    .select()
+    .from(formsAcls)
+    .where(
+      and(
+        eq(formsAcls.formId, formId),
+        or(...principalIds.map((id) => eq(formsAcls.principalId, id)))
+      )
+    );
+
+  if (aclEntries.length === 0) return false;
+
+  // If specific permission required, check it
+  if (requiredPermission) {
+    const allPermissions = aclEntries.flatMap((e: { permissions: string[] | null }) => e.permissions || []);
+    return allPermissions.includes(requiredPermission);
+  }
+
+  return true; // Has some ACL entry
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -46,8 +90,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing form id' }, { status: 400 });
     }
 
-    const userId = getUserId(request);
-    if (!userId) {
+    const user = extractUserFromRequest(request);
+    if (!user?.sub) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -65,6 +109,12 @@ export async function GET(request: NextRequest) {
     // Search
     const search = searchParams.get('search') || '';
 
+    // Check access (owner, admin, or ACL with READ permission)
+    const hasAccess = await checkFormAccess(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.READ);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
     // Get form
     const [form] = await db
       .select()
@@ -76,20 +126,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Form not found' }, { status: 404 });
     }
 
-    // Check access to form
-    const canAccessForm =
-      form.ownerUserId === userId || (form.isPublished && form.scope === 'project');
-    if (!canAccessForm) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
-    }
-
-    // Build entry conditions based on scope
+    // Build entry conditions
     const conditions = [eq(formEntries.formId, formId)];
-
-    // For private scope, user only sees their own entries
-    if (form.scope === 'private') {
-      conditions.push(eq(formEntries.createdByUserId, userId));
-    }
 
     // Search
     if (search) {
@@ -168,28 +206,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing form id' }, { status: 400 });
     }
 
-    const userId = getUserId(request);
-    if (!userId) {
+    const user = extractUserFromRequest(request);
+    if (!user?.sub) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
 
-    // Get form
-    const [form] = await db
-      .select()
-      .from(forms)
-      .where(eq(forms.id, formId))
-      .limit(1);
-
-    if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
-    }
-
-    // Check access - must be published for project scope, or owner for private
-    const canCreate =
-      form.ownerUserId === userId || (form.isPublished && form.scope === 'project');
-    if (!canCreate) {
+    // Check access (owner, admin, or ACL with WRITE permission)
+    const hasAccess = await checkFormAccess(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.WRITE);
+    if (!hasAccess) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
@@ -200,7 +226,7 @@ export async function POST(request: NextRequest) {
     await db.insert(formEntries).values({
       id: entryId,
       formId: formId,
-      createdByUserId: userId,
+      createdByUserId: user.sub,
       data: data,
       searchText: searchText,
     });

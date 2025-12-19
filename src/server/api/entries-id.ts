@@ -1,9 +1,46 @@
 // src/server/api/entries-id.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { forms, formEntries, formEntryHistory } from '@/lib/feature-pack-schemas';
-import { and, eq, sql } from 'drizzle-orm';
-import { getUserId } from '../auth';
+import { forms, formEntries, formEntryHistory, formsAcls } from '@/lib/feature-pack-schemas';
+import { and, eq, or, sql } from 'drizzle-orm';
+import { extractUserFromRequest } from '../auth';
+import { FORM_PERMISSIONS } from '../../schema/forms';
+
+/**
+ * Check if user can access a form (owner, admin, or has ACL entry with required permission)
+ */
+async function checkFormAccess(
+  db: ReturnType<typeof getDb>,
+  formId: string,
+  userId: string,
+  roles: string[] = [],
+  requiredPermission?: string
+): Promise<boolean> {
+  const [form] = await db.select().from(forms).where(eq(forms.id, formId)).limit(1);
+  if (!form) return false;
+  if (form.ownerUserId === userId) return true;
+  if (roles.includes('admin') || roles.includes('Admin')) return true;
+
+  const principalIds = [userId, ...roles].filter(Boolean);
+  if (principalIds.length === 0) return false;
+
+  const aclEntries = await db
+    .select()
+    .from(formsAcls)
+    .where(
+      and(
+        eq(formsAcls.formId, formId),
+        or(...principalIds.map((id) => eq(formsAcls.principalId, id)))
+      )
+    );
+
+  if (aclEntries.length === 0) return false;
+  if (requiredPermission) {
+    const allPermissions = aclEntries.flatMap((e: { permissions: string[] | null }) => e.permissions || []);
+    return allPermissions.includes(requiredPermission);
+  }
+  return true;
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -48,20 +85,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing form or entry id' }, { status: 400 });
     }
 
-    const userId = getUserId(request);
-    if (!userId) {
+    const user = extractUserFromRequest(request);
+    if (!user?.sub) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get form
-    const [form] = await db
-      .select()
-      .from(forms)
-      .where(eq(forms.id, formId))
-      .limit(1);
-
-    if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+    // Check access (owner, admin, or ACL with READ permission)
+    const hasAccess = await checkFormAccess(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.READ);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Get entry
@@ -73,15 +105,6 @@ export async function GET(request: NextRequest) {
 
     if (!entry) {
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
-    }
-
-    // Check access
-    const canAccess =
-      form.scope === 'project' ||
-      form.ownerUserId === userId ||
-      entry.createdByUserId === userId;
-    if (!canAccess) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     return NextResponse.json(entry);
@@ -103,22 +126,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Missing form or entry id' }, { status: 400 });
     }
 
-    const userId = getUserId(request);
-    if (!userId) {
+    const user = extractUserFromRequest(request);
+    if (!user?.sub) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
 
-    // Get form
-    const [form] = await db
-      .select()
-      .from(forms)
-      .where(eq(forms.id, formId))
-      .limit(1);
-
-    if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+    // Check access (owner, admin, or ACL with WRITE permission)
+    const hasAccess = await checkFormAccess(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.WRITE);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Get existing entry
@@ -130,13 +148,6 @@ export async function PUT(request: NextRequest) {
 
     if (!existingEntry) {
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
-    }
-
-    // Check access - owner of form or creator of entry
-    const canEdit =
-      form.ownerUserId === userId || existingEntry.createdByUserId === userId;
-    if (!canEdit) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Save history snapshot before update
@@ -151,7 +162,7 @@ export async function PUT(request: NextRequest) {
       entryId: entryId,
       formId: formId,
       version: historyVersion,
-      changedByUserId: userId,
+      changedByUserId: user.sub,
       changeType: 'update',
       snapshot: existingEntry.data,
     });
@@ -165,7 +176,7 @@ export async function PUT(request: NextRequest) {
       .set({
         data: newData,
         searchText: searchText,
-        updatedByUserId: userId,
+        updatedByUserId: user.sub,
         updatedAt: new Date(),
       })
       .where(eq(formEntries.id, entryId));
@@ -195,20 +206,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing form or entry id' }, { status: 400 });
     }
 
-    const userId = getUserId(request);
-    if (!userId) {
+    const user = extractUserFromRequest(request);
+    if (!user?.sub) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get form
-    const [form] = await db
-      .select()
-      .from(forms)
-      .where(eq(forms.id, formId))
-      .limit(1);
-
-    if (!form) {
-      return NextResponse.json({ error: 'Form not found' }, { status: 404 });
+    // Check access (owner, admin, or ACL with DELETE permission)
+    const hasAccess = await checkFormAccess(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.DELETE);
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Get existing entry
@@ -220,13 +226,6 @@ export async function DELETE(request: NextRequest) {
 
     if (!existingEntry) {
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
-    }
-
-    // Check access - owner of form or creator of entry
-    const canDelete =
-      form.ownerUserId === userId || existingEntry.createdByUserId === userId;
-    if (!canDelete) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Save history snapshot before delete
@@ -241,7 +240,7 @@ export async function DELETE(request: NextRequest) {
       entryId: entryId,
       formId: formId,
       version: historyVersion,
-      changedByUserId: userId,
+      changedByUserId: user.sub,
       changeType: 'delete',
       snapshot: existingEntry.data,
     });
