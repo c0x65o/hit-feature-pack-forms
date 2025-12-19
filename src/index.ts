@@ -52,3 +52,4 @@ export {
 
 // Component exports
 export { FormAclModal } from './components/FormAclModal';
+export { LinkedEntityTabs } from './components/LinkedEntityTabs';

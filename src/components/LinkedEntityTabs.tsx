@@ -1,0 +1,211 @@
+'use client';
+
+import React, { useCallback, useMemo, useState } from 'react';
+import { useUi } from '@hit/ui-kit';
+import { useLinkedFormEntries, useLinkedForms, type LinkedFormInfo, type LinkedEntityKind } from '../hooks/useLinkedEntities';
+
+export interface LinkedEntityTabsProps {
+  entity: { kind: LinkedEntityKind; id: string };
+  overview: React.ReactNode;
+  overviewLabel?: string;
+  includeZeroCountTabs?: boolean;
+  pageSize?: number;
+  onNavigate?: (path: string) => void;
+  rowHref?: (args: { formId: string; entryId: string }) => string;
+}
+
+function defaultRowHref(args: { formId: string; entryId: string }): string {
+  return `/forms/${encodeURIComponent(args.formId)}/entries/${encodeURIComponent(args.entryId)}`;
+}
+
+function safeNavigate(path: string, onNavigate?: (path: string) => void) {
+  if (onNavigate) return onNavigate(path);
+  window.location.href = path;
+}
+
+export function LinkedEntityTabs({
+  entity,
+  overview,
+  overviewLabel = 'Overview',
+  includeZeroCountTabs = true,
+  pageSize = 25,
+  onNavigate,
+  rowHref = defaultRowHref,
+}: LinkedEntityTabsProps) {
+  const { Tabs, Card, DataTable } = useUi();
+
+  const { items: linkedForms, loading: formsLoading } = useLinkedForms(entity);
+
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [page, setPage] = useState(1);
+
+  const visibleLinkedForms = useMemo(() => {
+    return includeZeroCountTabs ? linkedForms : linkedForms.filter((f) => f.count > 0);
+  }, [linkedForms, includeZeroCountTabs]);
+
+  const selectedFormInfo: LinkedFormInfo | null = useMemo(() => {
+    if (activeTab === 'overview') return null;
+    return visibleLinkedForms.find((f) => f.formId === activeTab) || null;
+  }, [activeTab, visibleLinkedForms]);
+
+  const tabs = useMemo(() => {
+    const tabItems: Array<{ id: string; label: string; content: null }> = [
+      { id: 'overview', label: overviewLabel, content: null },
+    ];
+
+    for (const f of visibleLinkedForms) {
+      tabItems.push({
+        id: f.formId,
+        label: f.count > 0 ? `${f.formName} (${f.count})` : f.formName,
+        content: null,
+      });
+    }
+
+    return tabItems;
+  }, [overviewLabel, visibleLinkedForms]);
+
+  const handleTabChange = useCallback(
+    (tabId: string) => {
+      setActiveTab(tabId);
+      setPage(1);
+    },
+    [setActiveTab]
+  );
+
+  const { data: entriesData, loading: entriesLoading, refresh: refreshEntries } = useLinkedFormEntries(
+    activeTab !== 'overview' && selectedFormInfo
+      ? {
+          formId: selectedFormInfo.formId,
+          entity,
+          entityFieldKey: selectedFormInfo.entityFieldKey,
+          options: { page, pageSize },
+        }
+      : null
+  );
+
+  const visibleFields = useMemo(() => {
+    return (entriesData?.fields || [])
+      .filter((f: any) => !f.hidden && (f.showInTable !== false))
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .slice(0, 10);
+  }, [entriesData?.fields]);
+
+  const columns = useMemo(() => {
+    const dynamicCols = visibleFields.map((f: any) => {
+      return {
+        key: f.key,
+        label: f.label,
+        sortable: false,
+        render: (_: unknown, row: any) => {
+          const v = row.data?.[f.key];
+          if (v === undefined || v === null) return '';
+
+          if (f.type === 'url') {
+            const s = String(v);
+            if (!s.trim()) return '';
+            return (
+              <a className="text-sm hover:text-blue-500 underline" href={s} target="_blank" rel="noreferrer">
+                {s}
+              </a>
+            );
+          }
+
+          if (f.type === 'datetime' || f.type === 'date') {
+            try {
+              const date = new Date(String(v));
+              if (!isNaN(date.getTime())) {
+                return f.type === 'datetime' ? date.toLocaleString() : date.toLocaleDateString();
+              }
+            } catch {
+              // fall through
+            }
+          }
+
+          // Friendly display for reference fields
+          if (Array.isArray(v)) {
+            return v
+              .map((x: any) => x?.label || x?.entryId || x?.entityId || '')
+              .filter(Boolean)
+              .join(', ');
+          }
+          if (typeof v === 'object') {
+            return (v as any).label || (v as any).entryId || (v as any).entityId || '';
+          }
+
+          return String(v);
+        },
+      };
+    });
+
+    return [
+      ...dynamicCols,
+      {
+        key: 'updatedAt',
+        label: 'Updated',
+        sortable: true,
+        render: (v: unknown) => (v ? new Date(String(v)).toLocaleString() : ''),
+      },
+    ];
+  }, [visibleFields]);
+
+  const rows = useMemo(() => {
+    return (entriesData?.items || []).map((e: any) => ({
+      id: e.id,
+      data: e.data,
+      updatedAt: e.updatedAt,
+    }));
+  }, [entriesData?.items]);
+
+  return (
+    <div>
+      {/* Tabs */}
+      {tabs.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <Tabs tabs={tabs} value={activeTab} onValueChange={handleTabChange} />
+        </div>
+      )}
+
+      {/* Content */}
+      {activeTab === 'overview' ? (
+        <>{overview}</>
+      ) : (
+        <Card title={selectedFormInfo?.formName || 'Linked Entries'}>
+          {!selectedFormInfo ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }}>
+              Loading form information...
+            </div>
+          ) : entriesLoading ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }}>
+              Loading entries...
+            </div>
+          ) : (entriesData?.items || []).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }}>
+              No entries found for this {entity.kind}.
+            </div>
+          ) : (
+            <DataTable
+              columns={columns as any}
+              data={rows}
+              emptyMessage="No entries found"
+              loading={entriesLoading || formsLoading}
+              searchable
+              pageSize={pageSize}
+              page={page}
+              total={entriesData?.pagination.total}
+              onPageChange={setPage}
+              manualPagination
+              onRefresh={refreshEntries}
+              refreshing={entriesLoading}
+              onRowClick={(row: any) => {
+                const href = rowHref({ formId: selectedFormInfo.formId, entryId: String(row.id) });
+                safeNavigate(href, onNavigate);
+              }}
+            />
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
+
+

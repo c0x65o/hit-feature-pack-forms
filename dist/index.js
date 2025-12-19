@@ -15,4 +15,5 @@ export { navContributions as nav } from './nav';
 export { forms, formVersions, formFields, formEntries, formEntryHistory, formsAcls, principalTypeEnum as formsPrincipalTypeEnum, FORM_PERMISSIONS, } from './schema/forms';
 // Component exports
 export { FormAclModal } from './components/FormAclModal';
+export { LinkedEntityTabs } from './components/LinkedEntityTabs';
 //# sourceMappingURL=index.js.map
