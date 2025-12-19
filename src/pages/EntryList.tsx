@@ -187,6 +187,8 @@ export function EntryList({ id, onNavigate }: Props) {
           tableId={`form.${formId}`}
           enableViews={true}
           onViewFiltersChange={handleViewFiltersChange}
+          onRefresh={refresh}
+          refreshing={loading}
         />
       </Card>
     </Page>

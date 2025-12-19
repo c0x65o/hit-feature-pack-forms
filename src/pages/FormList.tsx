@@ -105,6 +105,9 @@ export function FormList({ onNavigate }: Props) {
           loading={loading}
           searchable
           pageSize={25}
+          onRefresh={refresh}
+          refreshing={loading}
+          tableId="forms"
         />
       </Card>
     </Page>
