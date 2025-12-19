@@ -34,7 +34,7 @@ export {
   formEntries,
   formEntryHistory,
   formsAcls,
-  formsPrincipalTypeEnum,
+  principalTypeEnum as formsPrincipalTypeEnum,
   FORM_PERMISSIONS,
   type Form,
   type FormVersion,

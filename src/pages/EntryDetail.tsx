@@ -132,13 +132,40 @@ export function EntryDetail({ id, entryId, onNavigate }: Props) {
                     Array.isArray(v) ? (
                       <div className="flex flex-wrap gap-2">
                         {v.map((r: any, idx: number) => (
-                          <span key={`${r?.entityId || idx}-${idx}`} className="text-sm">
-                            {r?.label || r?.entityId || 'Entity'}
-                          </span>
+                          String(r?.entityKind || '') === 'project' && r?.entityId ? (
+                            <a
+                              key={`${r?.entityId || idx}-${idx}`}
+                              className="text-sm hover:text-blue-500 underline"
+                              href={`/marketing/projects/${encodeURIComponent(String(r.entityId))}`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                navigate(`/marketing/projects/${encodeURIComponent(String(r.entityId))}`);
+                              }}
+                            >
+                              {r?.label || r?.entityId || 'Project'}
+                            </a>
+                          ) : (
+                            <span key={`${r?.entityId || idx}-${idx}`} className="text-sm">
+                              {r?.label || r?.entityId || 'Entity'}
+                            </span>
+                          )
                         ))}
                       </div>
                     ) : typeof v === 'object' ? (
-                      <span className="text-sm">{(v as any).label || (v as any).entityId}</span>
+                      String((v as any)?.entityKind || '') === 'project' && (v as any)?.entityId ? (
+                        <a
+                          className="text-sm hover:text-blue-500 underline"
+                          href={`/marketing/projects/${encodeURIComponent(String((v as any).entityId))}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigate(`/marketing/projects/${encodeURIComponent(String((v as any).entityId))}`);
+                          }}
+                        >
+                          {(v as any).label || (v as any).entityId}
+                        </a>
+                      ) : (
+                        <span className="text-sm">{(v as any).label || (v as any).entityId}</span>
+                      )
                     ) : (
                       String(v)
                     )

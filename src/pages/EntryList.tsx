@@ -38,7 +38,13 @@ export function EntryList({ id, onNavigate }: Props) {
         const v = row.data?.[f.key];
         if (v === undefined || v === null) return '';
         if (f.type === 'url') {
-          return String(v);
+          const s = String(v);
+          if (!s.trim()) return '';
+          return (
+            <a className="text-sm hover:text-blue-500 underline" href={s} target="_blank" rel="noreferrer">
+              {s}
+            </a>
+          );
         }
         // Friendly display for reference fields
         if (Array.isArray(v)) {

@@ -31,7 +31,10 @@ export function EntryList({ id, onNavigate }) {
                 if (v === undefined || v === null)
                     return '';
                 if (f.type === 'url') {
-                    return String(v);
+                    const s = String(v);
+                    if (!s.trim())
+                        return '';
+                    return (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: s, target: "_blank", rel: "noreferrer", children: s }));
                 }
                 // Friendly display for reference fields
                 if (Array.isArray(v)) {

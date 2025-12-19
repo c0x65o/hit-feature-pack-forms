@@ -44,7 +44,13 @@ export function EntryDetail({ id, entryId, onNavigate }) {
                                         if (v.formId && v.entryId) {
                                             navigate(`/forms/${v.formId}/entries/${v.entryId}`);
                                         }
-                                    }, children: v.label || v.entryId })) : (String(v))) : isEntityRef ? (Array.isArray(v) ? (_jsx("div", { className: "flex flex-wrap gap-2", children: v.map((r, idx) => (_jsx("span", { className: "text-sm", children: r?.label || r?.entityId || 'Entity' }, `${r?.entityId || idx}-${idx}`))) })) : typeof v === 'object' ? (_jsx("span", { className: "text-sm", children: v.label || v.entityId })) : (String(v))) : (String(v)) })] }, f.key));
+                                    }, children: v.label || v.entryId })) : (String(v))) : isEntityRef ? (Array.isArray(v) ? (_jsx("div", { className: "flex flex-wrap gap-2", children: v.map((r, idx) => (String(r?.entityKind || '') === 'project' && r?.entityId ? (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: `/marketing/projects/${encodeURIComponent(String(r.entityId))}`, onClick: (e) => {
+                                            e.preventDefault();
+                                            navigate(`/marketing/projects/${encodeURIComponent(String(r.entityId))}`);
+                                        }, children: r?.label || r?.entityId || 'Project' }, `${r?.entityId || idx}-${idx}`)) : (_jsx("span", { className: "text-sm", children: r?.label || r?.entityId || 'Entity' }, `${r?.entityId || idx}-${idx}`)))) })) : typeof v === 'object' ? (String(v?.entityKind || '') === 'project' && v?.entityId ? (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: `/marketing/projects/${encodeURIComponent(String(v.entityId))}`, onClick: (e) => {
+                                        e.preventDefault();
+                                        navigate(`/marketing/projects/${encodeURIComponent(String(v.entityId))}`);
+                                    }, children: v.label || v.entityId })) : (_jsx("span", { className: "text-sm", children: v.label || v.entityId }))) : (String(v))) : (String(v)) })] }, f.key));
                 }) }) }) }));
 }
 export default EntryDetail;

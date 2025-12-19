@@ -20,9 +20,9 @@ import {
 
 /**
  * Principal Types for ACL
- * Note: Uses a forms-specific enum name to avoid conflicts when multiple packs are installed
+ * Shared enum used across all feature packs (forms, vault, notepad, etc.)
  */
-export const formsPrincipalTypeEnum = pgEnum('forms_principal_type', ['user', 'group', 'role']);
+export const principalTypeEnum = pgEnum('principal_type', ['user', 'group', 'role']);
 
 export const forms = pgTable('forms', {
   id: varchar('id', { length: 255 }).primaryKey(),
@@ -129,7 +129,7 @@ export const formsAcls = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     formId: varchar('form_id', { length: 255 }).notNull(), // ID of the form
-    principalType: formsPrincipalTypeEnum('principal_type').notNull(), // user | group | role
+    principalType: principalTypeEnum('principal_type').notNull(), // user | group | role
     principalId: varchar('principal_id', { length: 255 }).notNull(), // User email, group ID, or role name
     // Permissions: READ, WRITE, DELETE, MANAGE_ACL
     permissions: jsonb('permissions').$type<string[]>().notNull(),
