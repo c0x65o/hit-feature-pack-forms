@@ -87,7 +87,6 @@ export function LinkedEntityTabs({
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [page, setPage] = useState(1);
   const [viewFilters, setViewFilters] = useState<ViewFilter[]>([]);
-  const [currentView, setCurrentView] = useState<any | null>(null);
 
   const visibleLinkedForms = useMemo(() => {
     return includeZeroCountTabs ? linkedForms : linkedForms.filter((f) => f.count > 0);
@@ -119,7 +118,6 @@ export function LinkedEntityTabs({
       setActiveTab(tabId);
       setPage(1);
       setViewFilters([]);
-      setCurrentView(null);
     },
     [setActiveTab]
   );
@@ -211,9 +209,9 @@ export function LinkedEntityTabs({
   const filteredRows = useMemo(() => applyViewFilters(rows, viewFilters), [rows, viewFilters]);
   
   const metricsMeta: MetricsViewMetadata | null = useMemo(() => {
-    const m = currentView?.metadata?.metrics;
+    const m = entriesData?.listConfig?.metricsConfig;
     return m && typeof m === 'object' ? (m as MetricsViewMetadata) : null;
-  }, [currentView]);
+  }, [entriesData?.listConfig]);
 
   return (
     <div>
@@ -261,7 +259,6 @@ export function LinkedEntityTabs({
                 refreshing={entriesLoading}
                 tableId={`forms.entries.${selectedFormInfo.formId}`}
                 enableViews={true}
-                onViewChange={(view) => setCurrentView(view)}
                 onViewFiltersChange={(filters) => setViewFilters(filters as any)}
                 onRowClick={(row: any) => {
                   const href = rowHref({ formId: selectedFormInfo.formId, entryId: String(row.id) });

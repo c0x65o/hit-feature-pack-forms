@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Plus, Save, ClipboardList, FileText, Share2, Eye, Star, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Save, ClipboardList, FileText, Share2, Eye, Star, Trash2, Edit2, BarChart3 } from 'lucide-react';
 import { useUi, useTableView, type BreadcrumbItem, type TableView, type TableViewFilter } from '@hit/ui-kit';
 import {
   FieldType,
@@ -76,6 +76,10 @@ export function FormBuilder({ id, onNavigate }: Props) {
   const [viewBuilderIsDefault, setViewBuilderIsDefault] = useState(false);
   const [viewBuilderSaving, setViewBuilderSaving] = useState(false);
 
+  // Metrics configuration
+  const [metricsConfig, setMetricsConfig] = useState<Array<{ title: string; metricKey: string; agg: string; bucket: string; days: number }>>([]);
+  const [metricsCatalog, setMetricsCatalog] = useState<Record<string, any>>({});
+
   // Fetch available nav paths for tree picker
   useEffect(() => {
     async function loadNavPaths() {
@@ -122,7 +126,33 @@ export function FormBuilder({ id, onNavigate }: Props) {
       const sorted = [...version.fields].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       setFields(sorted);
     }
+    if (version?.listConfig?.metricsConfig) {
+      setMetricsConfig(version.listConfig.metricsConfig.panels || []);
+    } else {
+      setMetricsConfig([]);
+    }
   }, [form, version]);
+
+  // Load metrics catalog
+  useEffect(() => {
+    async function loadMetricsCatalog() {
+      try {
+        const res = await fetch('/api/metrics/catalog');
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data?.items) ? data.items : [];
+          const byKey: Record<string, any> = {};
+          for (const it of items) {
+            if (it && typeof it.key === 'string') byKey[it.key] = it;
+          }
+          setMetricsCatalog(byKey);
+        }
+      } catch {
+        // Catalog not available, that's okay
+      }
+    }
+    loadMetricsCatalog();
+  }, []);
 
   const addField = () => {
     const nextOrder = fields.length > 0 ? Math.max(...fields.map((f) => f.order || 0)) + 10 : 10;
@@ -204,7 +234,10 @@ export function FormBuilder({ id, onNavigate }: Props) {
         navLabel: navLabel.trim() || undefined,
         navIcon: navIcon.trim() || undefined,
         navParentPath: navPlacement === 'custom' ? navParentPath : null,
-        draft: { fields },
+        draft: { 
+          fields,
+          listConfig: metricsConfig.length > 0 ? { metricsConfig: { panels: metricsConfig } } : undefined,
+        },
       } as any);
       await refresh();
     } catch (e: any) {
@@ -830,6 +863,128 @@ export function FormBuilder({ id, onNavigate }: Props) {
                 )}
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Metrics Configuration Card */}
+      {!isNew && (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-lg font-semibold flex items-center gap-2">
+                <BarChart3 size={20} />
+                Metrics
+              </div>
+              <div className="text-sm text-gray-500">
+                Configure metrics panels to display above the entries table. Metrics will be shown when this form is linked to entities.
+              </div>
+            </div>
+            <Button variant="secondary" onClick={() => {
+              setMetricsConfig([...metricsConfig, { title: '', metricKey: '', agg: 'sum', bucket: 'day', days: 90 }]);
+            }}>
+              <Plus size={16} className="mr-2" />
+              Add Metric Panel
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {metricsConfig.length === 0 && (
+              <div className="text-sm text-gray-500 p-4 border border-dashed border-gray-600 rounded-lg text-center">
+                No metrics configured. Add metric panels to display charts above the entries table.
+              </div>
+            )}
+            {metricsConfig.map((panel, idx) => {
+              const metricDef = metricsCatalog[panel.metricKey];
+              return (
+                <div key={idx} className="border border-gray-700 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">Panel {idx + 1}</div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMetricsConfig(metricsConfig.filter((_, i) => i !== idx));
+                      }}
+                    >
+                      <Trash2 size={14} className="text-red-500" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Title"
+                      value={panel.title}
+                      onChange={(v: string) => {
+                        const next = [...metricsConfig];
+                        next[idx] = { ...next[idx], title: v };
+                        setMetricsConfig(next);
+                      }}
+                      placeholder="e.g., Revenue (USD)"
+                    />
+                    <Select
+                      label="Metric"
+                      value={panel.metricKey}
+                      onChange={(v: string) => {
+                        const next = [...metricsConfig];
+                        next[idx] = { ...next[idx], metricKey: v };
+                        setMetricsConfig(next);
+                      }}
+                      options={Object.entries(metricsCatalog).map(([key, def]: [string, any]) => ({
+                        value: key,
+                        label: `${def.label} (${key})`,
+                      }))}
+                      placeholder="Select metric..."
+                    />
+                    <Select
+                      label="Aggregation"
+                      value={panel.agg}
+                      onChange={(v: string) => {
+                        const next = [...metricsConfig];
+                        next[idx] = { ...next[idx], agg: v };
+                        setMetricsConfig(next);
+                      }}
+                      options={[
+                        { value: 'sum', label: 'Sum' },
+                        { value: 'avg', label: 'Average' },
+                        { value: 'max', label: 'Max' },
+                        { value: 'min', label: 'Min' },
+                        { value: 'count', label: 'Count' },
+                      ]}
+                    />
+                    <Select
+                      label="Time Bucket"
+                      value={panel.bucket}
+                      onChange={(v: string) => {
+                        const next = [...metricsConfig];
+                        next[idx] = { ...next[idx], bucket: v };
+                        setMetricsConfig(next);
+                      }}
+                      options={[
+                        { value: 'hour', label: 'Hour' },
+                        { value: 'day', label: 'Day' },
+                        { value: 'week', label: 'Week' },
+                        { value: 'month', label: 'Month' },
+                      ]}
+                    />
+                    <Input
+                      label="Days to Show"
+                      value={String(panel.days)}
+                      onChange={(v: string) => {
+                        const next = [...metricsConfig];
+                        next[idx] = { ...next[idx], days: Number(v) || 90 };
+                        setMetricsConfig(next);
+                      }}
+                      placeholder="90"
+                    />
+                  </div>
+                  {metricDef && (
+                    <div className="text-xs text-gray-500">
+                      {metricDef.description || `${metricDef.label} (${metricDef.unit})`}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}

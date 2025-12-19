@@ -1,7 +1,7 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Plus, Save, ClipboardList, FileText, Share2, Eye, Star, Trash2, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Save, ClipboardList, FileText, Share2, Eye, Star, Trash2, Edit2, BarChart3 } from 'lucide-react';
 import { useUi, useTableView } from '@hit/ui-kit';
 import { useForms, useForm, useFormMutations, } from '../hooks/useForms';
 import { FormAclModal } from '../components/FormAclModal';
@@ -50,6 +50,9 @@ export function FormBuilder({ id, onNavigate }) {
     const [viewBuilderFilters, setViewBuilderFilters] = useState([]);
     const [viewBuilderIsDefault, setViewBuilderIsDefault] = useState(false);
     const [viewBuilderSaving, setViewBuilderSaving] = useState(false);
+    // Metrics configuration
+    const [metricsConfig, setMetricsConfig] = useState([]);
+    const [metricsCatalog, setMetricsCatalog] = useState({});
     // Fetch available nav paths for tree picker
     useEffect(() => {
         async function loadNavPaths() {
@@ -98,7 +101,35 @@ export function FormBuilder({ id, onNavigate }) {
             const sorted = [...version.fields].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
             setFields(sorted);
         }
+        if (version?.listConfig?.metricsConfig) {
+            setMetricsConfig(version.listConfig.metricsConfig.panels || []);
+        }
+        else {
+            setMetricsConfig([]);
+        }
     }, [form, version]);
+    // Load metrics catalog
+    useEffect(() => {
+        async function loadMetricsCatalog() {
+            try {
+                const res = await fetch('/api/metrics/catalog');
+                if (res.ok) {
+                    const data = await res.json();
+                    const items = Array.isArray(data?.items) ? data.items : [];
+                    const byKey = {};
+                    for (const it of items) {
+                        if (it && typeof it.key === 'string')
+                            byKey[it.key] = it;
+                    }
+                    setMetricsCatalog(byKey);
+                }
+            }
+            catch {
+                // Catalog not available, that's okay
+            }
+        }
+        loadMetricsCatalog();
+    }, []);
     const addField = () => {
         const nextOrder = fields.length > 0 ? Math.max(...fields.map((f) => f.order || 0)) + 10 : 10;
         setFields((prev) => [
@@ -176,7 +207,10 @@ export function FormBuilder({ id, onNavigate }) {
                 navLabel: navLabel.trim() || undefined,
                 navIcon: navIcon.trim() || undefined,
                 navParentPath: navPlacement === 'custom' ? navParentPath : null,
-                draft: { fields },
+                draft: {
+                    fields,
+                    listConfig: metricsConfig.length > 0 ? { metricsConfig: { panels: metricsConfig } } : undefined,
+                },
             });
             await refresh();
         }
@@ -415,7 +449,48 @@ export function FormBuilder({ id, onNavigate }) {
                                                     catch (err) {
                                                         alert(err?.message || 'Failed to delete view');
                                                     }
-                                                }, children: _jsx(Trash2, { size: 14, className: "text-red-500" }) })] }))] }, view.id)))] })] })), _jsxs(Modal, { open: showViewBuilder, onClose: () => {
+                                                }, children: _jsx(Trash2, { size: 14, className: "text-red-500" }) })] }))] }, view.id)))] })] })), !isNew && (_jsxs(Card, { children: [_jsxs("div", { className: "flex items-center justify-between mb-4", children: [_jsxs("div", { children: [_jsxs("div", { className: "text-lg font-semibold flex items-center gap-2", children: [_jsx(BarChart3, { size: 20 }), "Metrics"] }), _jsx("div", { className: "text-sm text-gray-500", children: "Configure metrics panels to display above the entries table. Metrics will be shown when this form is linked to entities." })] }), _jsxs(Button, { variant: "secondary", onClick: () => {
+                                    setMetricsConfig([...metricsConfig, { title: '', metricKey: '', agg: 'sum', bucket: 'day', days: 90 }]);
+                                }, children: [_jsx(Plus, { size: 16, className: "mr-2" }), "Add Metric Panel"] })] }), _jsxs("div", { className: "space-y-3", children: [metricsConfig.length === 0 && (_jsx("div", { className: "text-sm text-gray-500 p-4 border border-dashed border-gray-600 rounded-lg text-center", children: "No metrics configured. Add metric panels to display charts above the entries table." })), metricsConfig.map((panel, idx) => {
+                                const metricDef = metricsCatalog[panel.metricKey];
+                                return (_jsxs("div", { className: "border border-gray-700 rounded-lg p-4 space-y-3", children: [_jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { className: "text-sm font-medium", children: ["Panel ", idx + 1] }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => {
+                                                        setMetricsConfig(metricsConfig.filter((_, i) => i !== idx));
+                                                    }, children: _jsx(Trash2, { size: 14, className: "text-red-500" }) })] }), _jsxs("div", { className: "grid grid-cols-2 gap-3", children: [_jsx(Input, { label: "Title", value: panel.title, onChange: (v) => {
+                                                        const next = [...metricsConfig];
+                                                        next[idx] = { ...next[idx], title: v };
+                                                        setMetricsConfig(next);
+                                                    }, placeholder: "e.g., Revenue (USD)" }), _jsx(Select, { label: "Metric", value: panel.metricKey, onChange: (v) => {
+                                                        const next = [...metricsConfig];
+                                                        next[idx] = { ...next[idx], metricKey: v };
+                                                        setMetricsConfig(next);
+                                                    }, options: Object.entries(metricsCatalog).map(([key, def]) => ({
+                                                        value: key,
+                                                        label: `${def.label} (${key})`,
+                                                    })), placeholder: "Select metric..." }), _jsx(Select, { label: "Aggregation", value: panel.agg, onChange: (v) => {
+                                                        const next = [...metricsConfig];
+                                                        next[idx] = { ...next[idx], agg: v };
+                                                        setMetricsConfig(next);
+                                                    }, options: [
+                                                        { value: 'sum', label: 'Sum' },
+                                                        { value: 'avg', label: 'Average' },
+                                                        { value: 'max', label: 'Max' },
+                                                        { value: 'min', label: 'Min' },
+                                                        { value: 'count', label: 'Count' },
+                                                    ] }), _jsx(Select, { label: "Time Bucket", value: panel.bucket, onChange: (v) => {
+                                                        const next = [...metricsConfig];
+                                                        next[idx] = { ...next[idx], bucket: v };
+                                                        setMetricsConfig(next);
+                                                    }, options: [
+                                                        { value: 'hour', label: 'Hour' },
+                                                        { value: 'day', label: 'Day' },
+                                                        { value: 'week', label: 'Week' },
+                                                        { value: 'month', label: 'Month' },
+                                                    ] }), _jsx(Input, { label: "Days to Show", value: String(panel.days), onChange: (v) => {
+                                                        const next = [...metricsConfig];
+                                                        next[idx] = { ...next[idx], days: Number(v) || 90 };
+                                                        setMetricsConfig(next);
+                                                    }, placeholder: "90" })] }), metricDef && (_jsx("div", { className: "text-xs text-gray-500", children: metricDef.description || `${metricDef.label} (${metricDef.unit})` }))] }, idx));
+                            })] })] })), _jsxs(Modal, { open: showViewBuilder, onClose: () => {
                     setShowViewBuilder(false);
                     setEditingView(null);
                 }, title: editingView ? 'Edit View' : 'Create View', size: "lg", children: [_jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: '16px' }, children: [_jsx(Input, { label: "View Name", value: viewBuilderName, onChange: setViewBuilderName, placeholder: "e.g., Active Items, Recent Entries" }), _jsx(TextArea, { label: "Description (optional)", value: viewBuilderDescription, onChange: setViewBuilderDescription, placeholder: "Describe what this view shows" }), _jsxs("div", { children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }, children: [_jsx("span", { style: { fontSize: '14px', fontWeight: 500 }, children: "Filters" }), _jsxs(Button, { variant: "secondary", size: "sm", onClick: () => {
