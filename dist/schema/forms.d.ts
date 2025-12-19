@@ -5,6 +5,7 @@
  */
 /**
  * Principal Types for ACL
+ * Shared enum used across all feature packs (forms, vault, notepad, etc.)
  */
 export declare const principalTypeEnum: import("drizzle-orm/pg-core").PgEnum<["user", "group", "role"]>;
 export declare const forms: import("drizzle-orm/pg-core").PgTableWithColumns<{

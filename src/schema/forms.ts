@@ -20,8 +20,9 @@ import {
 
 /**
  * Principal Types for ACL
+ * Shared enum used across all feature packs (forms, vault, notepad, etc.)
  */
-export const principalTypeEnum = pgEnum('forms_principal_type', ['user', 'group', 'role']);
+export const principalTypeEnum = pgEnum('principal_type', ['user', 'group', 'role']);
 
 export const forms = pgTable('forms', {
   id: varchar('id', { length: 255 }).primaryKey(),
