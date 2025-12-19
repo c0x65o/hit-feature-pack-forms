@@ -12,11 +12,11 @@ interface Props {
 }
 
 export function EntryEdit({ id, entryId, onNavigate }: Props) {
-  const { Page, Card, Button, Input, TextArea, Select, Alert } = useUi();
+  const { Page, Card, Button, Input, TextArea, Select, Alert, Modal } = useUi();
   const formId = id as string;
   const isNew = !entryId || entryId === 'new';
 
-  const { form, version } = useForm(formId);
+  const { form, version, loading: loadingForm, error: formError } = useForm(formId);
   const { entry, loading: loadingEntry, error: loadError } = useEntry(formId, isNew ? undefined : entryId);
   const { createEntry, updateEntry, loading: saving, error: saveError } = useEntryMutations(formId);
 
@@ -44,6 +44,17 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
   const [refLoading, setRefLoading] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
   const [refItems, setRefItems] = useState<Array<{ id: string; data: any }>>([]);
+
+  const [entityPicker, setEntityPicker] = useState<{
+    open: boolean;
+    fieldKey: string | null;
+    entityKind: string | null;
+    multi: boolean;
+  }>({ open: false, fieldKey: null, entityKind: null, multi: false });
+  const [entitySearch, setEntitySearch] = useState('');
+  const [entityLoading, setEntityLoading] = useState(false);
+  const [entityError, setEntityError] = useState<string | null>(null);
+  const [entityItems, setEntityItems] = useState<Array<{ id: string; label: string }>>([]);
 
   useEffect(() => {
     if (entry?.data) setData(entry.data as any);
@@ -80,6 +91,51 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
     run();
   }, [refPicker.open, refPicker.targetFormId, refSearch]);
 
+  useEffect(() => {
+    const run = async () => {
+      if (!entityPicker.open || !entityPicker.entityKind) return;
+      try {
+        setEntityLoading(true);
+        setEntityError(null);
+        setEntityItems([]);
+
+        if (entityPicker.entityKind !== 'project') {
+          throw new Error(`Unsupported entity kind: ${entityPicker.entityKind}`);
+        }
+
+        const qs = new URLSearchParams({
+          page: '1',
+          pageSize: '25',
+          search: entitySearch,
+        });
+        const res = await fetch(`/api/projects?${qs.toString()}`, {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || err.message || res.statusText);
+        }
+        const json = await res.json();
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        setEntityItems(
+          rows
+            .map((p: any) => ({
+              id: String(p?.id || ''),
+              label: String(p?.slug || p?.name || p?.id || ''),
+            }))
+            .filter((x: any) => x.id && x.label),
+        );
+      } catch (e: any) {
+        setEntityError(e?.message || 'Failed to load entities');
+        setEntityItems([]);
+      } finally {
+        setEntityLoading(false);
+      }
+    };
+    run();
+  }, [entityPicker.open, entityPicker.entityKind, entitySearch]);
+
   const validate = () => {
     const errs: Record<string, string> = {};
     for (const f of fields) {
@@ -114,6 +170,17 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
 
     switch (f.type) {
       case 'text':
+        return (
+          <Input
+            key={f.key}
+            label={f.label}
+            value={String(v)}
+            onChange={(val: string) => setData((p) => ({ ...p, [f.key]: val }))}
+            required={Boolean(f.required)}
+            error={err}
+          />
+        );
+      case 'url':
         return (
           <Input
             key={f.key}
@@ -175,7 +242,7 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
             options={[{ value: '', label: 'Select…' }, ...parseSelectOptions(f)]}
           />
         );
-      case 'reference':
+      case 'reference': {
         const refCfg = f.config?.reference || {};
         const targetFormId = String(refCfg.targetFormId || '');
         const displayFieldKey = String(refCfg.displayFieldKey || '');
@@ -196,7 +263,7 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
 
         return (
           <div key={f.key} className="space-y-2">
-            <div className="text-sm text-gray-500">{f.label}</div>
+            <div className="text-sm font-medium text-gray-300">{f.label}</div>
             {!targetFormId ? (
               <Alert variant="warning" title="Reference field not configured">
                 Set a target form + display field key in the form builder.
@@ -208,9 +275,9 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
                     <div className="text-sm text-gray-500">No selection</div>
                   ) : (
                     currentList.map((r, idx) => (
-                      <div key={`${r.entryId}-${idx}`} className="flex items-center gap-2 border border-gray-800 rounded px-2 py-1">
+                      <div key={`${r.entryId}-${idx}`} className="flex items-center gap-2 border border-gray-800 rounded px-3 py-1.5 bg-gray-900/50">
                         <a
-                          className="text-sm hover:text-blue-500"
+                          className="text-sm hover:text-blue-500 transition-colors"
                           href={`/forms/${r.formId || targetFormId}/entries/${r.entryId}`}
                           onClick={(e) => {
                             e.preventDefault();
@@ -219,7 +286,7 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
                         >
                           {r.label || r.entryId}
                         </a>
-                        <button className="text-xs text-gray-500 hover:text-red-500" onClick={() => removeAt(idx)}>
+                        <button className="text-xs text-gray-500 hover:text-red-500 transition-colors" onClick={() => removeAt(idx)}>
                           Remove
                         </button>
                       </div>
@@ -246,6 +313,59 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
             )}
           </div>
         );
+      }
+      case 'entity_reference': {
+        const eCfg = f.config?.entity || {};
+        const entityKind = String(eCfg.kind || 'project');
+        const multi = Boolean(eCfg.multi);
+
+        const currentEnt = data[f.key];
+        const currentEntList: Array<{ entityKind: string; entityId: string; label?: string }> = Array.isArray(currentEnt)
+          ? currentEnt
+          : currentEnt && typeof currentEnt === 'object'
+            ? [currentEnt]
+            : [];
+
+        const removeEntAt = (idx: number) => {
+          const next = [...currentEntList];
+          next.splice(idx, 1);
+          setData((p) => ({ ...p, [f.key]: multi ? next : (next[0] || null) }));
+        };
+
+        return (
+          <div key={f.key} className="space-y-2">
+            <div className="text-sm font-medium text-gray-300">{f.label}</div>
+            <div className="flex flex-wrap gap-2">
+              {currentEntList.length === 0 ? (
+                <div className="text-sm text-gray-500">No selection</div>
+              ) : (
+                currentEntList.map((r, idx) => (
+                  <div key={`${r.entityId}-${idx}`} className="flex items-center gap-2 border border-gray-800 rounded px-3 py-1.5 bg-gray-900/50">
+                    <span className="text-sm">{r.label || r.entityId}</span>
+                    <button className="text-xs text-gray-500 hover:text-red-500 transition-colors" onClick={() => removeEntAt(idx)}>
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                setEntityPicker({
+                  open: true,
+                  fieldKey: f.key,
+                  entityKind,
+                  multi,
+                })
+              }
+            >
+              Select…
+            </Button>
+          </div>
+        );
+      }
       default:
         return (
           <Alert key={f.key} variant="warning" title={f.label}>
@@ -269,12 +389,30 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
     navigate(`/forms/${formId}/entries/${entryId}`);
   };
 
-  if (!isNew && loadingEntry) {
+  if (loadingForm || (!isNew && loadingEntry)) {
     return (
       <Page title="Loading...">
         <Card>
           <div className="py-10">Loading…</div>
         </Card>
+      </Page>
+    );
+  }
+
+  if (formError) {
+    return (
+      <Page
+        title="Form not found"
+        actions={
+          <Button variant="secondary" onClick={() => navigate('/forms')}>
+            <ArrowLeft size={16} className="mr-2" />
+            Back
+          </Button>
+        }
+      >
+        <Alert variant="error" title="Error">
+          {formError.message}
+        </Alert>
       </Page>
     );
   }
@@ -325,91 +463,151 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
         </Alert>
       )}
 
-      {/* Reference picker overlay (simple, self-contained) */}
-      {refPicker.open && (
-        <div
-          className="fixed inset-0 z-50"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
-          onClick={() => setRefPicker((p) => ({ ...p, open: false }))}
-        >
-          <div
-            className="max-w-3xl mx-auto mt-20 bg-black border border-gray-800 rounded-lg p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-lg font-semibold">Select reference</div>
-              <Button variant="ghost" size="sm" onClick={() => setRefPicker((p) => ({ ...p, open: false }))}>
-                Close
-              </Button>
-            </div>
+      {/* Reference picker overlay */}
+      <Modal
+        open={refPicker.open}
+        onClose={() => setRefPicker((p) => ({ ...p, open: false }))}
+        title="Select reference"
+        size="lg"
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Search"
+            value={refSearch}
+            onChange={setRefSearch}
+            placeholder="Search…"
+          />
 
-            <div className="flex items-center gap-2 mb-3">
-              <Input
-                label="Search"
-                value={refSearch}
-                onChange={setRefSearch}
-                placeholder="Search…"
-              />
-            </div>
+          {refError && (
+            <Alert variant="error" title="Error">
+              {refError}
+            </Alert>
+          )}
 
-            {refError && (
-              <Alert variant="error" title="Error">
-                {refError}
-              </Alert>
+          <div className="max-h-[400px] overflow-y-auto flex flex-col gap-2">
+            {refLoading ? (
+              <div className="py-4 text-center text-gray-500">Loading…</div>
+            ) : refItems.length === 0 ? (
+              <div className="py-4 text-center text-gray-500">No results</div>
+            ) : (
+              refItems.map((item) => {
+                const label =
+                  refPicker.displayFieldKey && item.data
+                    ? item.data[refPicker.displayFieldKey]
+                    : null;
+                const display = label ? String(label) : item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (!refPicker.fieldKey || !refPicker.targetFormId) return;
+
+                      const refObj = {
+                        formId: refPicker.targetFormId,
+                        entryId: item.id,
+                        label: display,
+                      };
+
+                      setData((prev) => {
+                        const existing = prev[refPicker.fieldKey as string];
+                        if (refPicker.multi) {
+                          const arr = Array.isArray(existing) ? existing : [];
+                          const next = [...arr, refObj];
+                          return { ...prev, [refPicker.fieldKey as string]: next };
+                        }
+                        return { ...prev, [refPicker.fieldKey as string]: refObj };
+                      });
+
+                      setRefPicker((p) => ({ ...p, open: false }));
+                    }}
+                    className="w-full text-left px-3 py-2 border border-gray-800 rounded hover:border-blue-600 hover:bg-gray-900 transition-colors"
+                  >
+                    <div className="text-sm font-medium mb-1">{display}</div>
+                    <div className="text-xs text-gray-500">{item.id}</div>
+                  </button>
+                );
+              })
             )}
-
-            <div className="space-y-2">
-              {refLoading ? (
-                <div className="text-sm text-gray-500">Loading…</div>
-              ) : refItems.length === 0 ? (
-                <div className="text-sm text-gray-500">No results</div>
-              ) : (
-                refItems.map((item) => {
-                  const label =
-                    refPicker.displayFieldKey && item.data
-                      ? item.data[refPicker.displayFieldKey]
-                      : null;
-                  const display = label ? String(label) : item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      className="w-full text-left border border-gray-800 rounded px-3 py-2 hover:border-blue-600"
-                      onClick={() => {
-                        if (!refPicker.fieldKey || !refPicker.targetFormId) return;
-
-                        const refObj = {
-                          formId: refPicker.targetFormId,
-                          entryId: item.id,
-                          label: display,
-                        };
-
-                        setData((prev) => {
-                          const existing = prev[refPicker.fieldKey as string];
-                          if (refPicker.multi) {
-                            const arr = Array.isArray(existing) ? existing : [];
-                            const next = [...arr, refObj];
-                            return { ...prev, [refPicker.fieldKey as string]: next };
-                          }
-                          return { ...prev, [refPicker.fieldKey as string]: refObj };
-                        });
-
-                        setRefPicker((p) => ({ ...p, open: false }));
-                      }}
-                    >
-                      <div className="text-sm font-medium">{display}</div>
-                      <div className="text-xs text-gray-500">{item.id}</div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
           </div>
         </div>
-      )}
+      </Modal>
+
+      {/* Entity picker overlay */}
+      <Modal
+        open={entityPicker.open}
+        onClose={() => setEntityPicker((p) => ({ ...p, open: false }))}
+        title={`Select ${entityPicker.entityKind}`}
+        size="lg"
+      >
+        <div className="flex flex-col gap-4">
+          <Input label="Search" value={entitySearch} onChange={setEntitySearch} placeholder="Search…" />
+
+          {entityError && (
+            <Alert variant="error" title="Error">
+              {entityError}
+            </Alert>
+          )}
+
+          <div className="max-h-[400px] overflow-y-auto flex flex-col gap-2">
+            {entityLoading ? (
+              <div className="py-4 text-center text-gray-500">Loading…</div>
+            ) : entityItems.length === 0 ? (
+              <div className="py-4 text-center text-gray-500">No results</div>
+            ) : (
+              entityItems.map((item) => {
+                const currentValue = data[entityPicker.fieldKey as string];
+                const isSelected = entityPicker.multi
+                  ? Array.isArray(currentValue) && currentValue.some((v: any) => v?.entityId === item.id)
+                  : currentValue?.entityId === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (!entityPicker.fieldKey || !entityPicker.entityKind) return;
+                      const obj = { entityKind: entityPicker.entityKind, entityId: item.id, label: item.label };
+                      setData((prev) => {
+                        const existing = prev[entityPicker.fieldKey as string];
+                        if (entityPicker.multi) {
+                          const arr = Array.isArray(existing) ? existing : [];
+                          // Toggle selection for multi
+                          const isAlreadySelected = arr.some((v: any) => v?.entityId === item.id);
+                          if (isAlreadySelected) {
+                            return { ...prev, [entityPicker.fieldKey as string]: arr.filter((v: any) => v?.entityId !== item.id) };
+                          }
+                          return { ...prev, [entityPicker.fieldKey as string]: [...arr, obj] };
+                        }
+                        // For single selection, return the selected object
+                        return { ...prev, [entityPicker.fieldKey as string]: obj };
+                      });
+                      // Close modal for single selection
+                      if (!entityPicker.multi) {
+                        setEntityPicker((p) => ({ ...p, open: false }));
+                      }
+                    }}
+                    className={`w-full text-left px-3 py-2 border rounded transition-colors ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-950/30 text-white'
+                        : 'border-gray-800 hover:border-blue-600 hover:bg-gray-900'
+                    }`}
+                  >
+                    <div className="text-sm font-medium mb-1">{item.label}</div>
+                    <div className="text-xs text-gray-500">{item.id}</div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
 
       <Card>
         <div className="space-y-6">
-          {fields.length === 0 ? (
+          {!version ? (
+            <Alert variant="warning" title="Form not configured">
+              This form has no draft version. Please create a draft version in the form builder.
+            </Alert>
+          ) : fields.length === 0 ? (
             <Alert variant="warning" title="No fields">
               This form has no fields yet. Add fields in the form builder.
             </Alert>

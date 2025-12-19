@@ -3,6 +3,10 @@
  *
  * This is a fixed schema that supports unlimited end-user forms without migrations.
  */
+/**
+ * Principal Types for ACL
+ */
+export declare const principalTypeEnum: import("drizzle-orm/pg-core").PgEnum<["user", "group", "role"]>;
 export declare const forms: import("drizzle-orm/pg-core").PgTableWithColumns<{
     name: "forms";
     schema: undefined;
@@ -149,6 +153,30 @@ export declare const forms: import("drizzle-orm/pg-core").PgTableWithColumns<{
             notNull: false;
             hasDefault: false;
             enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        navParentPath: import("drizzle-orm/pg-core").PgColumn<{
+            name: "nav_parent_path";
+            tableName: "forms";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
+            hasDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        aclEnabled: import("drizzle-orm/pg-core").PgColumn<{
+            name: "acl_enabled";
+            tableName: "forms";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: true;
+            hasDefault: true;
+            enumValues: undefined;
             baseColumn: never;
         }, {}, {}>;
         ownerUserId: import("drizzle-orm/pg-core").PgColumn<{
@@ -393,6 +421,18 @@ export declare const formFields: import("drizzle-orm/pg-core").PgTableWithColumn
             enumValues: undefined;
             baseColumn: never;
         }, {}, {}>;
+        showInTable: import("drizzle-orm/pg-core").PgColumn<{
+            name: "show_in_table";
+            tableName: "form_fields";
+            dataType: "boolean";
+            columnType: "PgBoolean";
+            data: boolean;
+            driverParam: boolean;
+            notNull: true;
+            hasDefault: true;
+            enumValues: undefined;
+            baseColumn: never;
+        }, {}, {}>;
         config: import("drizzle-orm/pg-core").PgColumn<{
             name: "config";
             tableName: "form_fields";
@@ -480,6 +520,18 @@ export declare const formEntries: import("drizzle-orm/pg-core").PgTableWithColum
             data: string;
             driverParam: string;
             notNull: true;
+            hasDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        updatedByUserId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "updated_by_user_id";
+            tableName: "form_entries";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: false;
             hasDefault: false;
             enumValues: [string, ...string[]];
             baseColumn: never;
@@ -638,6 +690,113 @@ export declare const formEntryHistory: import("drizzle-orm/pg-core").PgTableWith
     };
     dialect: "pg";
 }>;
+/**
+ * ACL Table (Access Control Entries)
+ * Defines permissions for forms and form entries
+ */
+export declare const formsAcls: import("drizzle-orm/pg-core").PgTableWithColumns<{
+    name: "forms_acls";
+    schema: undefined;
+    columns: {
+        id: import("drizzle-orm/pg-core").PgColumn<{
+            name: "id";
+            tableName: "forms_acls";
+            dataType: "string";
+            columnType: "PgUUID";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            enumValues: undefined;
+            baseColumn: never;
+        }, {}, {}>;
+        resourceType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "resource_type";
+            tableName: "forms_acls";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        resourceId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "resource_id";
+            tableName: "forms_acls";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        principalType: import("drizzle-orm/pg-core").PgColumn<{
+            name: "principal_type";
+            tableName: "forms_acls";
+            dataType: "string";
+            columnType: "PgEnumColumn";
+            data: "role" | "user" | "group";
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            enumValues: ["user", "group", "role"];
+            baseColumn: never;
+        }, {}, {}>;
+        principalId: import("drizzle-orm/pg-core").PgColumn<{
+            name: "principal_id";
+            tableName: "forms_acls";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        permissions: import("drizzle-orm/pg-core").PgColumn<{
+            name: "permissions";
+            tableName: "forms_acls";
+            dataType: "json";
+            columnType: "PgJsonb";
+            data: string[];
+            driverParam: unknown;
+            notNull: true;
+            hasDefault: false;
+            enumValues: undefined;
+            baseColumn: never;
+        }, {}, {}>;
+        createdBy: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_by";
+            tableName: "forms_acls";
+            dataType: "string";
+            columnType: "PgVarchar";
+            data: string;
+            driverParam: string;
+            notNull: true;
+            hasDefault: false;
+            enumValues: [string, ...string[]];
+            baseColumn: never;
+        }, {}, {}>;
+        createdAt: import("drizzle-orm/pg-core").PgColumn<{
+            name: "created_at";
+            tableName: "forms_acls";
+            dataType: "date";
+            columnType: "PgTimestamp";
+            data: Date;
+            driverParam: string;
+            notNull: true;
+            hasDefault: true;
+            enumValues: undefined;
+            baseColumn: never;
+        }, {}, {}>;
+    };
+    dialect: "pg";
+}>;
 export type Form = typeof forms.$inferSelect;
 export type InsertForm = typeof forms.$inferInsert;
 export type FormVersion = typeof formVersions.$inferSelect;
@@ -647,4 +806,6 @@ export type InsertFormField = typeof formFields.$inferInsert;
 export type FormEntry = typeof formEntries.$inferSelect;
 export type InsertFormEntry = typeof formEntries.$inferInsert;
 export type FormEntryHistory = typeof formEntryHistory.$inferSelect;
+export type FormsAcl = typeof formsAcls.$inferSelect;
+export type InsertFormsAcl = typeof formsAcls.$inferInsert;
 //# sourceMappingURL=forms.d.ts.map

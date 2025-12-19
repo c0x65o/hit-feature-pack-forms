@@ -5,12 +5,22 @@ export declare const runtime = "nodejs";
  * GET /api/forms/[id]
  * Get a form with its current draft version and fields
  */
-export declare function GET(request: NextRequest): Promise<NextResponse<any>>;
+export declare function GET(request: NextRequest): Promise<NextResponse<{
+    error: string;
+}> | NextResponse<{
+    form: any;
+    version: any;
+}>>;
 /**
  * PUT /api/forms/[id]
  * Update form metadata and fields
  */
-export declare function PUT(request: NextRequest): Promise<NextResponse<any>>;
+export declare function PUT(request: NextRequest): Promise<NextResponse<{
+    error: string;
+}> | NextResponse<{
+    form: any;
+    version: any;
+}>>;
 /**
  * DELETE /api/forms/[id]
  * Delete form and all related data (versions, fields, entries, history)

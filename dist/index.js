@@ -12,5 +12,5 @@ export * from './hooks/index';
 // Navigation config
 export { navContributions as nav } from './nav';
 // Schema exports
-export { forms, formVersions, formFields, formEntries, formEntryHistory, } from './schema/forms';
+export { forms, formVersions, formFields, formEntries, formEntryHistory, formsAcls, } from './schema/forms';
 //# sourceMappingURL=index.js.map

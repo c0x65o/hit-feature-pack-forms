@@ -81,12 +81,18 @@ export function EntryDetail({ id, entryId, onNavigate }: Props) {
           {fields.map((f) => {
             const v = (entry.data || {})[f.key];
             const isRef = f.type === 'reference';
+            const isEntityRef = f.type === 'entity_reference';
+            const isUrl = f.type === 'url';
             return (
               <div key={f.key}>
                 <div className="text-sm text-gray-500">{f.label}</div>
                 <div className="text-base">
                   {v === undefined || v === null ? (
                     ''
+                  ) : isUrl ? (
+                    <a className="text-sm hover:text-blue-500 underline" href={String(v)} target="_blank" rel="noreferrer">
+                      {String(v)}
+                    </a>
                   ) : isRef ? (
                     Array.isArray(v) ? (
                       <div className="flex flex-wrap gap-2">
@@ -119,6 +125,20 @@ export function EntryDetail({ id, entryId, onNavigate }: Props) {
                       >
                         {(v as any).label || (v as any).entryId}
                       </a>
+                    ) : (
+                      String(v)
+                    )
+                  ) : isEntityRef ? (
+                    Array.isArray(v) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {v.map((r: any, idx: number) => (
+                          <span key={`${r?.entityId || idx}-${idx}`} className="text-sm">
+                            {r?.label || r?.entityId || 'Entity'}
+                          </span>
+                        ))}
+                      </div>
+                    ) : typeof v === 'object' ? (
+                      <span className="text-sm">{(v as any).label || (v as any).entityId}</span>
                     ) : (
                       String(v)
                     )

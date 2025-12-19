@@ -25,9 +25,9 @@ export function EntryList({ id, onNavigate }: Props) {
   };
 
   const visibleFields = (version?.fields || [])
-    .filter((f) => !f.hidden)
+    .filter((f) => !f.hidden && (f.showInTable !== false))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .slice(0, 4); // keep table compact
+    .slice(0, 10); // increased limit since we have explicit control
 
   const columns = useMemo(() => {
     const dynamicCols = visibleFields.map((f) => ({
@@ -37,15 +37,18 @@ export function EntryList({ id, onNavigate }: Props) {
       render: (_: unknown, row: any) => {
         const v = row.data?.[f.key];
         if (v === undefined || v === null) return '';
+        if (f.type === 'url') {
+          return String(v);
+        }
         // Friendly display for reference fields
         if (Array.isArray(v)) {
           return v
-            .map((x: any) => x?.label || x?.entryId || '')
+            .map((x: any) => x?.label || x?.entryId || x?.entityId || '')
             .filter(Boolean)
             .join(', ');
         }
         if (typeof v === 'object') {
-          return (v as any).label || (v as any).entryId || '';
+          return (v as any).label || (v as any).entryId || (v as any).entityId || '';
         }
         return String(v);
       },

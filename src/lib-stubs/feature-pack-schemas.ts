@@ -15,6 +15,7 @@ export {
   formFields,
   formEntries,
   formEntryHistory,
+  formsAcls,
   type Form,
   type InsertForm,
   type FormVersion,
@@ -24,4 +25,6 @@ export {
   type FormEntry,
   type InsertFormEntry,
   type FormEntryHistory,
+  type FormsAcl,
+  type InsertFormsAcl,
 } from '../schema/forms';

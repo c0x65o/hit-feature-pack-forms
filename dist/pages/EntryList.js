@@ -18,9 +18,9 @@ export function EntryList({ id, onNavigate }) {
             window.location.href = path;
     };
     const visibleFields = (version?.fields || [])
-        .filter((f) => !f.hidden)
+        .filter((f) => !f.hidden && (f.showInTable !== false))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .slice(0, 4); // keep table compact
+        .slice(0, 10); // increased limit since we have explicit control
     const columns = useMemo(() => {
         const dynamicCols = visibleFields.map((f) => ({
             key: f.key,
@@ -30,15 +30,18 @@ export function EntryList({ id, onNavigate }) {
                 const v = row.data?.[f.key];
                 if (v === undefined || v === null)
                     return '';
+                if (f.type === 'url') {
+                    return String(v);
+                }
                 // Friendly display for reference fields
                 if (Array.isArray(v)) {
                     return v
-                        .map((x) => x?.label || x?.entryId || '')
+                        .map((x) => x?.label || x?.entryId || x?.entityId || '')
                         .filter(Boolean)
                         .join(', ');
                 }
                 if (typeof v === 'object') {
-                    return v.label || v.entryId || '';
+                    return v.label || v.entryId || v.entityId || '';
                 }
                 return String(v);
             },

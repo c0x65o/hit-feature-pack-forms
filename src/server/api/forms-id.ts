@@ -67,9 +67,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      ...form,
-      currentVersion: version || null,
-      fields,
+      form,
+      version: version ? { ...version, fields } : null,
     });
   } catch (error) {
     console.error('[forms] Get form error:', error);
@@ -188,9 +187,8 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({
-      ...updatedForm,
-      currentVersion: latestVersion || null,
-      fields,
+      form: updatedForm,
+      version: latestVersion ? { ...latestVersion, fields } : null,
     });
   } catch (error) {
     console.error('[forms] Update form error:', error);

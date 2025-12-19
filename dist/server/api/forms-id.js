@@ -57,9 +57,8 @@ export async function GET(request) {
                 .orderBy(formFields.order);
         }
         return NextResponse.json({
-            ...form,
-            currentVersion: version || null,
-            fields,
+            form,
+            version: version ? { ...version, fields } : null,
         });
     }
     catch (error) {
@@ -172,9 +171,8 @@ export async function PUT(request) {
                 .orderBy(formFields.order);
         }
         return NextResponse.json({
-            ...updatedForm,
-            currentVersion: latestVersion || null,
-            fields,
+            form: updatedForm,
+            version: latestVersion ? { ...latestVersion, fields } : null,
         });
     }
     catch (error) {

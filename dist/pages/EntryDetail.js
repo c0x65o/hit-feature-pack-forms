@@ -32,7 +32,9 @@ export function EntryDetail({ id, entryId, onNavigate }) {
     return (_jsx(Page, { title: form?.name ? `${form.name} — Entry` : 'Entry', breadcrumbs: breadcrumbs, onNavigate: navigate, actions: _jsx("div", { className: "flex items-center gap-2", children: _jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/${entry.id}/edit`), children: [_jsx(Edit, { size: 16, className: "mr-2" }), "Edit"] }) }), children: _jsx(Card, { children: _jsx("div", { className: "space-y-4", children: fields.map((f) => {
                     const v = (entry.data || {})[f.key];
                     const isRef = f.type === 'reference';
-                    return (_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-500", children: f.label }), _jsx("div", { className: "text-base", children: v === undefined || v === null ? ('') : isRef ? (Array.isArray(v) ? (_jsx("div", { className: "flex flex-wrap gap-2", children: v.map((r, idx) => (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: `/forms/${r?.formId || ''}/entries/${r?.entryId || ''}`, onClick: (e) => {
+                    const isEntityRef = f.type === 'entity_reference';
+                    const isUrl = f.type === 'url';
+                    return (_jsxs("div", { children: [_jsx("div", { className: "text-sm text-gray-500", children: f.label }), _jsx("div", { className: "text-base", children: v === undefined || v === null ? ('') : isUrl ? (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: String(v), target: "_blank", rel: "noreferrer", children: String(v) })) : isRef ? (Array.isArray(v) ? (_jsx("div", { className: "flex flex-wrap gap-2", children: v.map((r, idx) => (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: `/forms/${r?.formId || ''}/entries/${r?.entryId || ''}`, onClick: (e) => {
                                             e.preventDefault();
                                             if (r?.formId && r?.entryId) {
                                                 navigate(`/forms/${r.formId}/entries/${r.entryId}`);
@@ -42,7 +44,7 @@ export function EntryDetail({ id, entryId, onNavigate }) {
                                         if (v.formId && v.entryId) {
                                             navigate(`/forms/${v.formId}/entries/${v.entryId}`);
                                         }
-                                    }, children: v.label || v.entryId })) : (String(v))) : (String(v)) })] }, f.key));
+                                    }, children: v.label || v.entryId })) : (String(v))) : isEntityRef ? (Array.isArray(v) ? (_jsx("div", { className: "flex flex-wrap gap-2", children: v.map((r, idx) => (_jsx("span", { className: "text-sm", children: r?.label || r?.entityId || 'Entity' }, `${r?.entityId || idx}-${idx}`))) })) : typeof v === 'object' ? (_jsx("span", { className: "text-sm", children: v.label || v.entityId })) : (String(v))) : (String(v)) })] }, f.key));
                 }) }) }) }));
 }
 export default EntryDetail;

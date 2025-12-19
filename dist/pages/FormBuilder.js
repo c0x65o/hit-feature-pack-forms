@@ -199,12 +199,14 @@ export function FormBuilder({ id, onNavigate }) {
                                                     setFields(next);
                                                 }, options: [
                                                     { value: 'text', label: 'Text' },
+                                                    { value: 'url', label: 'URL' },
                                                     { value: 'textarea', label: 'Textarea' },
                                                     { value: 'number', label: 'Number' },
                                                     { value: 'date', label: 'Date' },
                                                     { value: 'select', label: 'Select' },
                                                     { value: 'checkbox', label: 'Checkbox' },
                                                     { value: 'reference', label: 'Reference' },
+                                                    { value: 'entity_reference', label: 'Entity Reference' },
                                                 ] })] }), _jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("label", { className: "text-sm flex items-center gap-2", children: [_jsx("input", { type: "checkbox", checked: Boolean(f.required), onChange: (e) => {
                                                             const next = [...fields];
                                                             next[idx] = { ...next[idx], required: e.target.checked };
@@ -267,7 +269,37 @@ export function FormBuilder({ id, onNavigate }) {
                                                                 },
                                                             };
                                                             setFields(next);
-                                                        } }), "Allow multiple selections"] }), _jsxs("div", { className: "text-xs text-gray-500", children: ["Stored as ", _jsx("code", { children: '{ formId, entryId, label }' }), " (or an array if multi)."] })] }))] }, f.id)))] })] })] }));
+                                                        } }), "Allow multiple selections"] }), _jsxs("div", { className: "text-xs text-gray-500", children: ["Stored as ", _jsx("code", { children: '{ formId, entryId, label }' }), " (or an array if multi)."] })] })), f.type === 'entity_reference' && (_jsxs("div", { className: "space-y-3", children: [_jsx(Select, { label: "Entity kind", value: String(f.config?.entity?.kind || 'project'), onChange: (v) => {
+                                                    const next = [...fields];
+                                                    const prevCfg = next[idx].config || {};
+                                                    next[idx] = {
+                                                        ...next[idx],
+                                                        config: {
+                                                            ...prevCfg,
+                                                            entity: {
+                                                                ...(prevCfg.entity || {}),
+                                                                kind: v || 'project',
+                                                            },
+                                                        },
+                                                    };
+                                                    setFields(next);
+                                                }, options: [
+                                                    { value: 'project', label: 'Project' },
+                                                ] }), _jsxs("label", { className: "text-sm flex items-center gap-2", children: [_jsx("input", { type: "checkbox", checked: Boolean(f.config?.entity?.multi), onChange: (e) => {
+                                                            const next = [...fields];
+                                                            const prevCfg = next[idx].config || {};
+                                                            next[idx] = {
+                                                                ...next[idx],
+                                                                config: {
+                                                                    ...prevCfg,
+                                                                    entity: {
+                                                                        ...(prevCfg.entity || {}),
+                                                                        multi: e.target.checked,
+                                                                    },
+                                                                },
+                                                            };
+                                                            setFields(next);
+                                                        } }), "Allow multiple"] })] }))] }, f.id)))] })] })] }));
 }
 export default FormBuilder;
 //# sourceMappingURL=FormBuilder.js.map

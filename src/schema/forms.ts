@@ -7,6 +7,9 @@ import {
   integer,
   jsonb,
   timestamp,
+  uuid,
+  unique,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
 
 /**
@@ -14,6 +17,11 @@ import {
  *
  * This is a fixed schema that supports unlimited end-user forms without migrations.
  */
+
+/**
+ * Principal Types for ACL
+ */
+export const principalTypeEnum = pgEnum('forms_principal_type', ['user', 'group', 'role']);
 
 export const forms = pgTable('forms', {
   id: varchar('id', { length: 255 }).primaryKey(),
@@ -32,6 +40,10 @@ export const forms = pgTable('forms', {
   navWeight: integer('nav_weight').notNull().default(500),
   navLabel: varchar('nav_label', { length: 255 }),
   navIcon: varchar('nav_icon', { length: 64 }),
+  // Navigation parent path for nesting under projects or other nav items
+  navParentPath: varchar('nav_parent_path', { length: 255 }),
+  // Enable ACL sharing (UI kit ACL picker)
+  aclEnabled: boolean('acl_enabled').notNull().default(false),
   ownerUserId: varchar('owner_user_id', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -58,6 +70,8 @@ export const formFields = pgTable('form_fields', {
   order: integer('order').notNull().default(0),
   hidden: boolean('hidden').notNull().default(false),
   required: boolean('required').notNull().default(false),
+  // Show this field in the datatable/list view
+  showInTable: boolean('show_in_table').notNull().default(true),
   // Generic config for field types:
   // - select options
   // - validations
@@ -75,6 +89,7 @@ export const formEntries = pgTable(
     formId: varchar('form_id', { length: 255 }).notNull(),
     // Entry visibility is governed by forms.scope + createdByUserId
     createdByUserId: varchar('created_by_user_id', { length: 255 }).notNull(),
+    updatedByUserId: varchar('updated_by_user_id', { length: 255 }),
     data: jsonb('data').notNull(),
     /**
      * Denormalized search string, maintained by the API on create/update.
@@ -104,6 +119,35 @@ export const formEntryHistory = pgTable('form_entry_history', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+/**
+ * ACL Table (Access Control Entries)
+ * Defines permissions for forms and form entries
+ */
+export const formsAcls = pgTable(
+  'forms_acls',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    resourceType: varchar('resource_type', { length: 50 }).notNull(), // form | entry
+    resourceId: varchar('resource_id', { length: 255 }).notNull(), // ID of form or entry
+    principalType: principalTypeEnum('principal_type').notNull(), // user | group | role
+    principalId: varchar('principal_id', { length: 255 }).notNull(), // User email, group ID, or role name
+    // Permissions: VIEW, CREATE, EDIT, DELETE, MANAGE_ACL
+    permissions: jsonb('permissions').$type<string[]>().notNull(),
+    createdBy: varchar('created_by', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    resourceIdx: index('forms_acls_resource_idx').on(table.resourceType, table.resourceId),
+    principalIdx: index('forms_acls_principal_idx').on(table.principalType, table.principalId),
+    resourcePrincipalIdx: unique('forms_acls_resource_principal_unique').on(
+      table.resourceType,
+      table.resourceId,
+      table.principalType,
+      table.principalId
+    ), // One ACL entry per resource+principal
+  })
+);
+
 // Types
 export type Form = typeof forms.$inferSelect;
 export type InsertForm = typeof forms.$inferInsert;
@@ -118,3 +162,6 @@ export type FormEntry = typeof formEntries.$inferSelect;
 export type InsertFormEntry = typeof formEntries.$inferInsert;
 
 export type FormEntryHistory = typeof formEntryHistory.$inferSelect;
+
+export type FormsAcl = typeof formsAcls.$inferSelect;
+export type InsertFormsAcl = typeof formsAcls.$inferInsert;

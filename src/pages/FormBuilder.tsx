@@ -361,12 +361,14 @@ export function FormBuilder({ id, onNavigate }: Props) {
                   }}
                   options={[
                     { value: 'text', label: 'Text' },
+                    { value: 'url', label: 'URL' },
                     { value: 'textarea', label: 'Textarea' },
                     { value: 'number', label: 'Number' },
                     { value: 'date', label: 'Date' },
                     { value: 'select', label: 'Select' },
                     { value: 'checkbox', label: 'Checkbox' },
                     { value: 'reference', label: 'Reference' },
+                    { value: 'entity_reference', label: 'Entity Reference' },
                   ]}
                 />
               </div>
@@ -498,6 +500,55 @@ export function FormBuilder({ id, onNavigate }: Props) {
                   <div className="text-xs text-gray-500">
                     Stored as <code>{'{ formId, entryId, label }'}</code> (or an array if multi).
                   </div>
+                </div>
+              )}
+
+              {f.type === 'entity_reference' && (
+                <div className="space-y-3">
+                  <Select
+                    label="Entity kind"
+                    value={String(f.config?.entity?.kind || 'project')}
+                    onChange={(v: any) => {
+                      const next = [...fields];
+                      const prevCfg = next[idx].config || {};
+                      next[idx] = {
+                        ...next[idx],
+                        config: {
+                          ...prevCfg,
+                          entity: {
+                            ...(prevCfg.entity || {}),
+                            kind: v || 'project',
+                          },
+                        },
+                      };
+                      setFields(next);
+                    }}
+                    options={[
+                      { value: 'project', label: 'Project' },
+                    ]}
+                  />
+                  <label className="text-sm flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(f.config?.entity?.multi)}
+                      onChange={(e) => {
+                        const next = [...fields];
+                        const prevCfg = next[idx].config || {};
+                        next[idx] = {
+                          ...next[idx],
+                          config: {
+                            ...prevCfg,
+                            entity: {
+                              ...(prevCfg.entity || {}),
+                              multi: e.target.checked,
+                            },
+                          },
+                        };
+                        setFields(next);
+                      }}
+                    />
+                    Allow multiple
+                  </label>
                 </div>
               )}
             </div>

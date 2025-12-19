@@ -165,6 +165,7 @@ export async function PUT(request: NextRequest) {
       .set({
         data: newData,
         searchText: searchText,
+        updatedByUserId: userId,
         updatedAt: new Date(),
       })
       .where(eq(formEntries.id, entryId));

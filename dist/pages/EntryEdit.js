@@ -5,10 +5,10 @@ import { ArrowLeft, Save, ClipboardList, FileText } from 'lucide-react';
 import { useUi } from '@hit/ui-kit';
 import { useEntry, useEntryMutations, useForm } from '../hooks/useForms';
 export function EntryEdit({ id, entryId, onNavigate }) {
-    const { Page, Card, Button, Input, TextArea, Select, Alert } = useUi();
+    const { Page, Card, Button, Input, TextArea, Select, Alert, Modal } = useUi();
     const formId = id;
     const isNew = !entryId || entryId === 'new';
-    const { form, version } = useForm(formId);
+    const { form, version, loading: loadingForm, error: formError } = useForm(formId);
     const { entry, loading: loadingEntry, error: loadError } = useEntry(formId, isNew ? undefined : entryId);
     const { createEntry, updateEntry, loading: saving, error: saveError } = useEntryMutations(formId);
     const navigate = (path) => {
@@ -29,6 +29,11 @@ export function EntryEdit({ id, entryId, onNavigate }) {
     const [refLoading, setRefLoading] = useState(false);
     const [refError, setRefError] = useState(null);
     const [refItems, setRefItems] = useState([]);
+    const [entityPicker, setEntityPicker] = useState({ open: false, fieldKey: null, entityKind: null, multi: false });
+    const [entitySearch, setEntitySearch] = useState('');
+    const [entityLoading, setEntityLoading] = useState(false);
+    const [entityError, setEntityError] = useState(null);
+    const [entityItems, setEntityItems] = useState([]);
     useEffect(() => {
         if (entry?.data)
             setData(entry.data);
@@ -66,6 +71,49 @@ export function EntryEdit({ id, entryId, onNavigate }) {
         };
         run();
     }, [refPicker.open, refPicker.targetFormId, refSearch]);
+    useEffect(() => {
+        const run = async () => {
+            if (!entityPicker.open || !entityPicker.entityKind)
+                return;
+            try {
+                setEntityLoading(true);
+                setEntityError(null);
+                setEntityItems([]);
+                if (entityPicker.entityKind !== 'project') {
+                    throw new Error(`Unsupported entity kind: ${entityPicker.entityKind}`);
+                }
+                const qs = new URLSearchParams({
+                    page: '1',
+                    pageSize: '25',
+                    search: entitySearch,
+                });
+                const res = await fetch(`/api/projects?${qs.toString()}`, {
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || err.message || res.statusText);
+                }
+                const json = await res.json();
+                const rows = Array.isArray(json?.data) ? json.data : [];
+                setEntityItems(rows
+                    .map((p) => ({
+                    id: String(p?.id || ''),
+                    label: String(p?.slug || p?.name || p?.id || ''),
+                }))
+                    .filter((x) => x.id && x.label));
+            }
+            catch (e) {
+                setEntityError(e?.message || 'Failed to load entities');
+                setEntityItems([]);
+            }
+            finally {
+                setEntityLoading(false);
+            }
+        };
+        run();
+    }, [entityPicker.open, entityPicker.entityKind, entitySearch]);
     const validate = () => {
         const errs = {};
         for (const f of fields) {
@@ -99,6 +147,8 @@ export function EntryEdit({ id, entryId, onNavigate }) {
         switch (f.type) {
             case 'text':
                 return (_jsx(Input, { label: f.label, value: String(v), onChange: (val) => setData((p) => ({ ...p, [f.key]: val })), required: Boolean(f.required), error: err }, f.key));
+            case 'url':
+                return (_jsx(Input, { label: f.label, value: String(v), onChange: (val) => setData((p) => ({ ...p, [f.key]: val })), required: Boolean(f.required), error: err }, f.key));
             case 'textarea':
                 return (_jsx(TextArea, { label: f.label, value: String(v), onChange: (val) => setData((p) => ({ ...p, [f.key]: val })), rows: 6 }, f.key));
             case 'number':
@@ -109,7 +159,7 @@ export function EntryEdit({ id, entryId, onNavigate }) {
                 return (_jsxs("label", { className: "text-sm flex items-center gap-2", children: [_jsx("input", { type: "checkbox", checked: Boolean(v), onChange: (e) => setData((p) => ({ ...p, [f.key]: e.target.checked })) }), f.label] }, f.key));
             case 'select':
                 return (_jsx(Select, { label: f.label, value: String(v), onChange: (val) => setData((p) => ({ ...p, [f.key]: val })), options: [{ value: '', label: 'Select…' }, ...parseSelectOptions(f)] }, f.key));
-            case 'reference':
+            case 'reference': {
                 const refCfg = f.config?.reference || {};
                 const targetFormId = String(refCfg.targetFormId || '');
                 const displayFieldKey = String(refCfg.displayFieldKey || '');
@@ -125,16 +175,39 @@ export function EntryEdit({ id, entryId, onNavigate }) {
                     next.splice(idx, 1);
                     setData((p) => ({ ...p, [f.key]: multi ? next : (next[0] || null) }));
                 };
-                return (_jsxs("div", { className: "space-y-2", children: [_jsx("div", { className: "text-sm text-gray-500", children: f.label }), !targetFormId ? (_jsx(Alert, { variant: "warning", title: "Reference field not configured", children: "Set a target form + display field key in the form builder." })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: "flex flex-wrap gap-2", children: currentList.length === 0 ? (_jsx("div", { className: "text-sm text-gray-500", children: "No selection" })) : (currentList.map((r, idx) => (_jsxs("div", { className: "flex items-center gap-2 border border-gray-800 rounded px-2 py-1", children: [_jsx("a", { className: "text-sm hover:text-blue-500", href: `/forms/${r.formId || targetFormId}/entries/${r.entryId}`, onClick: (e) => {
+                return (_jsxs("div", { className: "space-y-2", children: [_jsx("div", { className: "text-sm font-medium text-gray-300", children: f.label }), !targetFormId ? (_jsx(Alert, { variant: "warning", title: "Reference field not configured", children: "Set a target form + display field key in the form builder." })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: "flex flex-wrap gap-2", children: currentList.length === 0 ? (_jsx("div", { className: "text-sm text-gray-500", children: "No selection" })) : (currentList.map((r, idx) => (_jsxs("div", { className: "flex items-center gap-2 border border-gray-800 rounded px-3 py-1.5 bg-gray-900/50", children: [_jsx("a", { className: "text-sm hover:text-blue-500 transition-colors", href: `/forms/${r.formId || targetFormId}/entries/${r.entryId}`, onClick: (e) => {
                                                     e.preventDefault();
                                                     navigate(`/forms/${r.formId || targetFormId}/entries/${r.entryId}`);
-                                                }, children: r.label || r.entryId }), _jsx("button", { className: "text-xs text-gray-500 hover:text-red-500", onClick: () => removeAt(idx), children: "Remove" })] }, `${r.entryId}-${idx}`)))) }), _jsx(Button, { variant: "secondary", size: "sm", onClick: () => setRefPicker({
+                                                }, children: r.label || r.entryId }), _jsx("button", { className: "text-xs text-gray-500 hover:text-red-500 transition-colors", onClick: () => removeAt(idx), children: "Remove" })] }, `${r.entryId}-${idx}`)))) }), _jsx(Button, { variant: "secondary", size: "sm", onClick: () => setRefPicker({
                                         open: true,
                                         fieldKey: f.key,
                                         targetFormId,
                                         displayFieldKey,
                                         multi,
                                     }), children: "Select\u2026" })] }))] }, f.key));
+            }
+            case 'entity_reference': {
+                const eCfg = f.config?.entity || {};
+                const entityKind = String(eCfg.kind || 'project');
+                const multi = Boolean(eCfg.multi);
+                const currentEnt = data[f.key];
+                const currentEntList = Array.isArray(currentEnt)
+                    ? currentEnt
+                    : currentEnt && typeof currentEnt === 'object'
+                        ? [currentEnt]
+                        : [];
+                const removeEntAt = (idx) => {
+                    const next = [...currentEntList];
+                    next.splice(idx, 1);
+                    setData((p) => ({ ...p, [f.key]: multi ? next : (next[0] || null) }));
+                };
+                return (_jsxs("div", { className: "space-y-2", children: [_jsx("div", { className: "text-sm font-medium text-gray-300", children: f.label }), _jsx("div", { className: "flex flex-wrap gap-2", children: currentEntList.length === 0 ? (_jsx("div", { className: "text-sm text-gray-500", children: "No selection" })) : (currentEntList.map((r, idx) => (_jsxs("div", { className: "flex items-center gap-2 border border-gray-800 rounded px-3 py-1.5 bg-gray-900/50", children: [_jsx("span", { className: "text-sm", children: r.label || r.entityId }), _jsx("button", { className: "text-xs text-gray-500 hover:text-red-500 transition-colors", onClick: () => removeEntAt(idx), children: "Remove" })] }, `${r.entityId}-${idx}`)))) }), _jsx(Button, { variant: "secondary", size: "sm", onClick: () => setEntityPicker({
+                                open: true,
+                                fieldKey: f.key,
+                                entityKind,
+                                multi,
+                            }), children: "Select\u2026" })] }, f.key));
+            }
             default:
                 return (_jsxs(Alert, { variant: "warning", title: f.label, children: ["Unsupported field type: ", String(f.type)] }, f.key));
         }
@@ -152,8 +225,11 @@ export function EntryEdit({ id, entryId, onNavigate }) {
         await updateEntry(entryId, data);
         navigate(`/forms/${formId}/entries/${entryId}`);
     };
-    if (!isNew && loadingEntry) {
+    if (loadingForm || (!isNew && loadingEntry)) {
         return (_jsx(Page, { title: "Loading...", children: _jsx(Card, { children: _jsx("div", { className: "py-10", children: "Loading\u2026" }) }) }));
+    }
+    if (formError) {
+        return (_jsx(Page, { title: "Form not found", actions: _jsxs(Button, { variant: "secondary", onClick: () => navigate('/forms'), children: [_jsx(ArrowLeft, { size: 16, className: "mr-2" }), "Back"] }), children: _jsx(Alert, { variant: "error", title: "Error", children: formError.message }) }));
     }
     if (!isNew && loadError) {
         return (_jsx(Page, { title: "Entry not found", actions: _jsxs(Button, { variant: "secondary", onClick: () => navigate(`/forms/${formId}/entries`), children: [_jsx(ArrowLeft, { size: 16, className: "mr-2" }), "Back"] }), children: _jsx(Alert, { variant: "error", title: "Error", children: loadError.message }) }));
@@ -165,12 +241,12 @@ export function EntryEdit({ id, entryId, onNavigate }) {
         ...(!isNew && entryId ? [{ label: `Entry ${entryId.slice(0, 8)}`, href: `/forms/${formId}/entries/${entryId}` }] : []),
         { label: isNew ? 'New' : 'Edit' },
     ];
-    return (_jsxs(Page, { title: form?.name ? `${form.name} — ${isNew ? 'New' : 'Edit'} Entry` : isNew ? 'New Entry' : 'Edit Entry', breadcrumbs: breadcrumbs, onNavigate: navigate, actions: _jsx("div", { className: "flex items-center gap-2", children: _jsxs(Button, { variant: "primary", onClick: handleSubmit, disabled: saving, children: [_jsx(Save, { size: 16, className: "mr-2" }), isNew ? 'Create' : 'Save'] }) }), children: [saveError && (_jsx(Alert, { variant: "error", title: "Error saving", children: saveError.message })), refPicker.open && (_jsx("div", { className: "fixed inset-0 z-50", style: { background: 'rgba(0,0,0,0.6)' }, onClick: () => setRefPicker((p) => ({ ...p, open: false })), children: _jsxs("div", { className: "max-w-3xl mx-auto mt-20 bg-black border border-gray-800 rounded-lg p-4", onClick: (e) => e.stopPropagation(), children: [_jsxs("div", { className: "flex items-center justify-between mb-3", children: [_jsx("div", { className: "text-lg font-semibold", children: "Select reference" }), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => setRefPicker((p) => ({ ...p, open: false })), children: "Close" })] }), _jsx("div", { className: "flex items-center gap-2 mb-3", children: _jsx(Input, { label: "Search", value: refSearch, onChange: setRefSearch, placeholder: "Search\u2026" }) }), refError && (_jsx(Alert, { variant: "error", title: "Error", children: refError })), _jsx("div", { className: "space-y-2", children: refLoading ? (_jsx("div", { className: "text-sm text-gray-500", children: "Loading\u2026" })) : refItems.length === 0 ? (_jsx("div", { className: "text-sm text-gray-500", children: "No results" })) : (refItems.map((item) => {
+    return (_jsxs(Page, { title: form?.name ? `${form.name} — ${isNew ? 'New' : 'Edit'} Entry` : isNew ? 'New Entry' : 'Edit Entry', breadcrumbs: breadcrumbs, onNavigate: navigate, actions: _jsx("div", { className: "flex items-center gap-2", children: _jsxs(Button, { variant: "primary", onClick: handleSubmit, disabled: saving, children: [_jsx(Save, { size: 16, className: "mr-2" }), isNew ? 'Create' : 'Save'] }) }), children: [saveError && (_jsx(Alert, { variant: "error", title: "Error saving", children: saveError.message })), _jsx(Modal, { open: refPicker.open, onClose: () => setRefPicker((p) => ({ ...p, open: false })), title: "Select reference", size: "lg", children: _jsxs("div", { className: "flex flex-col gap-4", children: [_jsx(Input, { label: "Search", value: refSearch, onChange: setRefSearch, placeholder: "Search\u2026" }), refError && (_jsx(Alert, { variant: "error", title: "Error", children: refError })), _jsx("div", { className: "max-h-[400px] overflow-y-auto flex flex-col gap-2", children: refLoading ? (_jsx("div", { className: "py-4 text-center text-gray-500", children: "Loading\u2026" })) : refItems.length === 0 ? (_jsx("div", { className: "py-4 text-center text-gray-500", children: "No results" })) : (refItems.map((item) => {
                                 const label = refPicker.displayFieldKey && item.data
                                     ? item.data[refPicker.displayFieldKey]
                                     : null;
                                 const display = label ? String(label) : item.id;
-                                return (_jsxs("button", { className: "w-full text-left border border-gray-800 rounded px-3 py-2 hover:border-blue-600", onClick: () => {
+                                return (_jsxs("button", { onClick: () => {
                                         if (!refPicker.fieldKey || !refPicker.targetFormId)
                                             return;
                                         const refObj = {
@@ -188,8 +264,38 @@ export function EntryEdit({ id, entryId, onNavigate }) {
                                             return { ...prev, [refPicker.fieldKey]: refObj };
                                         });
                                         setRefPicker((p) => ({ ...p, open: false }));
-                                    }, children: [_jsx("div", { className: "text-sm font-medium", children: display }), _jsx("div", { className: "text-xs text-gray-500", children: item.id })] }, item.id));
-                            })) })] }) })), _jsx(Card, { children: _jsx("div", { className: "space-y-6", children: fields.length === 0 ? (_jsx(Alert, { variant: "warning", title: "No fields", children: "This form has no fields yet. Add fields in the form builder." })) : (fields.map(renderField)) }) })] }));
+                                    }, className: "w-full text-left px-3 py-2 border border-gray-800 rounded hover:border-blue-600 hover:bg-gray-900 transition-colors", children: [_jsx("div", { className: "text-sm font-medium mb-1", children: display }), _jsx("div", { className: "text-xs text-gray-500", children: item.id })] }, item.id));
+                            })) })] }) }), _jsx(Modal, { open: entityPicker.open, onClose: () => setEntityPicker((p) => ({ ...p, open: false })), title: `Select ${entityPicker.entityKind}`, size: "lg", children: _jsxs("div", { className: "flex flex-col gap-4", children: [_jsx(Input, { label: "Search", value: entitySearch, onChange: setEntitySearch, placeholder: "Search\u2026" }), entityError && (_jsx(Alert, { variant: "error", title: "Error", children: entityError })), _jsx("div", { className: "max-h-[400px] overflow-y-auto flex flex-col gap-2", children: entityLoading ? (_jsx("div", { className: "py-4 text-center text-gray-500", children: "Loading\u2026" })) : entityItems.length === 0 ? (_jsx("div", { className: "py-4 text-center text-gray-500", children: "No results" })) : (entityItems.map((item) => {
+                                const currentValue = data[entityPicker.fieldKey];
+                                const isSelected = entityPicker.multi
+                                    ? Array.isArray(currentValue) && currentValue.some((v) => v?.entityId === item.id)
+                                    : currentValue?.entityId === item.id;
+                                return (_jsxs("button", { onClick: () => {
+                                        if (!entityPicker.fieldKey || !entityPicker.entityKind)
+                                            return;
+                                        const obj = { entityKind: entityPicker.entityKind, entityId: item.id, label: item.label };
+                                        setData((prev) => {
+                                            const existing = prev[entityPicker.fieldKey];
+                                            if (entityPicker.multi) {
+                                                const arr = Array.isArray(existing) ? existing : [];
+                                                // Toggle selection for multi
+                                                const isAlreadySelected = arr.some((v) => v?.entityId === item.id);
+                                                if (isAlreadySelected) {
+                                                    return { ...prev, [entityPicker.fieldKey]: arr.filter((v) => v?.entityId !== item.id) };
+                                                }
+                                                return { ...prev, [entityPicker.fieldKey]: [...arr, obj] };
+                                            }
+                                            // For single selection, return the selected object
+                                            return { ...prev, [entityPicker.fieldKey]: obj };
+                                        });
+                                        // Close modal for single selection
+                                        if (!entityPicker.multi) {
+                                            setEntityPicker((p) => ({ ...p, open: false }));
+                                        }
+                                    }, className: `w-full text-left px-3 py-2 border rounded transition-colors ${isSelected
+                                        ? 'border-blue-600 bg-blue-950/30 text-white'
+                                        : 'border-gray-800 hover:border-blue-600 hover:bg-gray-900'}`, children: [_jsx("div", { className: "text-sm font-medium mb-1", children: item.label }), _jsx("div", { className: "text-xs text-gray-500", children: item.id })] }, item.id));
+                            })) })] }) }), _jsx(Card, { children: _jsx("div", { className: "space-y-6", children: !version ? (_jsx(Alert, { variant: "warning", title: "Form not configured", children: "This form has no draft version. Please create a draft version in the form builder." })) : fields.length === 0 ? (_jsx(Alert, { variant: "warning", title: "No fields", children: "This form has no fields yet. Add fields in the form builder." })) : (fields.map(renderField)) }) })] }));
 }
 export default EntryEdit;
 //# sourceMappingURL=EntryEdit.js.map

@@ -1,6 +1,6 @@
 export type FormScope = 'private' | 'project';
 export type NavPlacement = 'under_forms' | 'top_level';
-export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'reference';
+export type FieldType = 'text' | 'url' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'reference' | 'entity_reference';
 export interface FormRecord {
     id: string;
     name: string;
@@ -14,6 +14,8 @@ export interface FormRecord {
     navWeight: number;
     navLabel: string | null;
     navIcon: string | null;
+    navParentPath: string | null;
+    aclEnabled: boolean;
     ownerUserId: string;
     createdAt: string;
     updatedAt: string;
@@ -26,6 +28,7 @@ export interface FormFieldRecord {
     order: number;
     hidden: boolean;
     required: boolean;
+    showInTable: boolean;
     config: any;
     defaultValue: any;
 }
@@ -41,6 +44,7 @@ export interface FormEntryRecord {
     id: string;
     formId: string;
     createdByUserId: string;
+    updatedByUserId: string | null;
     data: Record<string, unknown>;
     createdAt: string;
     updatedAt: string;
