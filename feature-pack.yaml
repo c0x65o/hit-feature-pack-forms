@@ -67,6 +67,10 @@ api:
       methods: [DELETE]
       handler: "@hit/feature-pack-forms/server/api/acl"
       description: "Delete an ACL entry"
+    - path: /api/forms/linked
+      methods: [GET]
+      handler: "@hit/feature-pack-forms/server/api/linked"
+      description: "List published forms linked to an entity via entity_reference fields (dynamic entity tabs)"
 
 requires:
   modules: []

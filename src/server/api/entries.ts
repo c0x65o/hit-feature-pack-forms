@@ -46,6 +46,10 @@ function extractFormId(request: NextRequest): string | null {
   return entriesIndex > 0 ? parts[entriesIndex - 1] : null;
 }
 
+function isSafeKey(v: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(v);
+}
+
 /**
  * Compute denormalized search text from entry data
  */
@@ -96,6 +100,24 @@ export async function GET(request: NextRequest) {
     // Search
     const search = searchParams.get('search') || '';
 
+    // Optional: filter entries by a linked entity reference field.
+    // Used to power "dynamic entity tabs" (projects/companies/etc) without entity-specific endpoints.
+    const linkedEntityKind = (searchParams.get('linkedEntityKind') || '').trim();
+    const linkedEntityId = (searchParams.get('linkedEntityId') || '').trim();
+    const linkedFieldKey = (searchParams.get('linkedFieldKey') || '').trim();
+    const wantsLinkedFilter = Boolean(linkedEntityKind || linkedEntityId || linkedFieldKey);
+    if (wantsLinkedFilter) {
+      if (!linkedEntityKind || !linkedEntityId || !linkedFieldKey) {
+        return NextResponse.json(
+          { error: 'linkedEntityKind, linkedEntityId, and linkedFieldKey are required together' },
+          { status: 400 }
+        );
+      }
+      if (!isSafeKey(linkedEntityKind) || !isSafeKey(linkedEntityId) || !isSafeKey(linkedFieldKey)) {
+        return NextResponse.json({ error: 'Invalid linked entity filter' }, { status: 400 });
+      }
+    }
+
     // Check ACL - need READ permission
     const hasAccess = await hasFormPermission(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.READ);
     if (!hasAccess) {
@@ -113,12 +135,53 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Form not found' }, { status: 404 });
     }
 
+    // Get published version fields for reference (also used for linkedEntity filter validation)
+    const [publishedVersion] = await db
+      .select()
+      .from(formVersions)
+      .where(and(eq(formVersions.formId, formId), eq(formVersions.status, 'published')))
+      .orderBy(desc(formVersions.version))
+      .limit(1);
+
+    let fields: any[] = [];
+    if (publishedVersion) {
+      fields = await db
+        .select()
+        .from(formFields)
+        .where(eq(formFields.versionId, publishedVersion.id))
+        .orderBy(formFields.order);
+    }
+
     // Build entry conditions
     const conditions = [eq(formEntries.formId, formId)];
 
     // Search
     if (search) {
       conditions.push(like(formEntries.searchText, `%${search}%`));
+    }
+
+    // Linked entity filter
+    if (wantsLinkedFilter) {
+      const linkedField = fields.find((f: any) => {
+        if (f?.key !== linkedFieldKey) return false;
+        if (f?.type !== 'entity_reference') return false;
+        const cfg = f.config && typeof f.config === 'object' ? (f.config as any) : null;
+        const kind = String(cfg?.entity?.kind || '');
+        return kind === linkedEntityKind;
+      });
+      if (!linkedField) {
+        return NextResponse.json(
+          { error: 'linkedFieldKey is not a valid entity_reference field for linkedEntityKind on this form' },
+          { status: 400 }
+        );
+      }
+
+      conditions.push(
+        sql`(
+          ${formEntries.data}->${sql.raw(`'${linkedFieldKey}'`)} @> ${sql.raw(`'{"entityKind":"${linkedEntityKind}","entityId":"${linkedEntityId}"}'`)}::jsonb
+          OR ${formEntries.data}->${sql.raw(`'${linkedFieldKey}'`)} @> ${sql.raw(`'[{"entityKind":"${linkedEntityKind}","entityId":"${linkedEntityId}"}]'`)}::jsonb
+        )`
+      );
     }
 
     // Sorting
@@ -146,23 +209,6 @@ export async function GET(request: NextRequest) {
       .orderBy(orderDirection)
       .limit(pageSize)
       .offset(offset);
-
-    // Get published version fields for reference
-    const [publishedVersion] = await db
-      .select()
-      .from(formVersions)
-      .where(and(eq(formVersions.formId, formId), eq(formVersions.status, 'published')))
-      .orderBy(desc(formVersions.version))
-      .limit(1);
-
-    let fields: any[] = [];
-    if (publishedVersion) {
-      fields = await db
-        .select()
-        .from(formFields)
-        .where(eq(formFields.versionId, publishedVersion.id))
-        .orderBy(formFields.order);
-    }
 
     return NextResponse.json({
       items: entries,
