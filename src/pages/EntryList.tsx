@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useUi } from '@hit/ui-kit';
 import { useEntries, useForm, useEntryMutations } from '../hooks/useForms';
@@ -15,6 +15,7 @@ export function EntryList({ id, onNavigate }: Props) {
   const formId = id as string;
 
   const [page, setPage] = useState(1);
+  const [activeFilters, setActiveFilters] = useState<Array<{ field: string; operator: string; value: any }>>([]);
   const { form, version } = useForm(formId);
   const { data, loading, error, refresh } = useEntries({ formId, page, pageSize: 25 });
   const { deleteEntry, loading: mutating } = useEntryMutations(formId);
@@ -29,12 +30,45 @@ export function EntryList({ id, onNavigate }: Props) {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .slice(0, 10); // increased limit since we have explicit control
 
+  // Handle view filter changes
+  const handleViewFiltersChange = useCallback((filters: Array<{ field: string; operator: string; value: any }>) => {
+    setActiveFilters(filters);
+    // TODO: Apply filters to data fetching when server-side filtering is implemented
+  }, []);
+
   const columns = useMemo(() => {
-    const dynamicCols = visibleFields.map((f) => ({
-      key: f.key,
-      label: f.label,
-      sortable: false,
-      render: (_: unknown, row: any) => {
+    const dynamicCols = visibleFields.map((f) => {
+      // Map form field types to DataTable filter types
+      let filterType: 'string' | 'number' | 'date' | 'boolean' | 'select' = 'string';
+      let filterOptions: Array<{ value: string; label: string }> | undefined;
+
+      switch (f.type) {
+        case 'number':
+          filterType = 'number';
+          break;
+        case 'date':
+        case 'datetime':
+          filterType = 'date';
+          break;
+        case 'checkbox':
+          filterType = 'boolean';
+          break;
+        case 'select':
+          filterType = 'select';
+          filterOptions = (f.config?.options || []).map((opt: any) => ({
+            value: typeof opt === 'string' ? opt : opt.value,
+            label: typeof opt === 'string' ? opt : opt.label,
+          }));
+          break;
+      }
+
+      return {
+        key: f.key,
+        label: f.label,
+        sortable: false,
+        filterType,
+        filterOptions,
+        render: (_: unknown, row: any) => {
         const v = row.data?.[f.key];
         if (v === undefined || v === null) return '';
         if (f.type === 'url') {
@@ -70,7 +104,8 @@ export function EntryList({ id, onNavigate }: Props) {
         }
         return String(v);
       },
-    }));
+    };
+    });
 
     return [
       ...dynamicCols,
@@ -149,6 +184,9 @@ export function EntryList({ id, onNavigate }: Props) {
           searchable
           pageSize={25}
           onRowClick={(row) => navigate(`/forms/${formId}/entries/${row.id}`)}
+          tableId={`form.${formId}`}
+          enableViews={true}
+          onViewFiltersChange={handleViewFiltersChange}
         />
       </Card>
     </Page>

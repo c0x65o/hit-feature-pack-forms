@@ -65,7 +65,7 @@ export function EntryDetail({ id, entryId, onNavigate }: Props) {
 
   return (
     <Page
-      title={form?.name ? `${form.name} — Entry` : 'Entry'}
+      title={form?.name || 'Entry'}
       breadcrumbs={breadcrumbs}
       onNavigate={navigate}
       actions={

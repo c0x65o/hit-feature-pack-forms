@@ -32,7 +32,6 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export type FormScope = 'private' | 'project';
 export type NavPlacement = 'under_forms' | 'top_level';
 export type FieldType =
   | 'text'

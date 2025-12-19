@@ -30,7 +30,7 @@ export function EntryDetail({ id, entryId, onNavigate }) {
         { label: 'Entries', href: `/forms/${formId}/entries` },
         { label: `Entry ${entry.id.slice(0, 8)}` },
     ];
-    return (_jsx(Page, { title: form?.name ? `${form.name} — Entry` : 'Entry', breadcrumbs: breadcrumbs, onNavigate: navigate, actions: _jsxs("div", { className: "flex items-center gap-2", children: [_jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/${entry.id}/edit`), children: [_jsx(Edit, { size: 16, className: "mr-2" }), "Edit"] }), _jsxs(Button, { variant: "danger", onClick: async () => {
+    return (_jsx(Page, { title: form?.name || 'Entry', breadcrumbs: breadcrumbs, onNavigate: navigate, actions: _jsxs("div", { className: "flex items-center gap-2", children: [_jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/${entry.id}/edit`), children: [_jsx(Edit, { size: 16, className: "mr-2" }), "Edit"] }), _jsxs(Button, { variant: "danger", onClick: async () => {
                         if (!confirm('Are you sure you want to delete this entry? This action cannot be undone.'))
                             return;
                         try {

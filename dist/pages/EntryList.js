@@ -1,6 +1,6 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { useUi } from '@hit/ui-kit';
 import { useEntries, useForm, useEntryMutations } from '../hooks/useForms';
@@ -8,6 +8,7 @@ export function EntryList({ id, onNavigate }) {
     const { Page, Card, Button, DataTable, Alert } = useUi();
     const formId = id;
     const [page, setPage] = useState(1);
+    const [activeFilters, setActiveFilters] = useState([]);
     const { form, version } = useForm(formId);
     const { data, loading, error, refresh } = useEntries({ formId, page, pageSize: 25 });
     const { deleteEntry, loading: mutating } = useEntryMutations(formId);
@@ -21,47 +22,78 @@ export function EntryList({ id, onNavigate }) {
         .filter((f) => !f.hidden && (f.showInTable !== false))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .slice(0, 10); // increased limit since we have explicit control
+    // Handle view filter changes
+    const handleViewFiltersChange = useCallback((filters) => {
+        setActiveFilters(filters);
+        // TODO: Apply filters to data fetching when server-side filtering is implemented
+    }, []);
     const columns = useMemo(() => {
-        const dynamicCols = visibleFields.map((f) => ({
-            key: f.key,
-            label: f.label,
-            sortable: false,
-            render: (_, row) => {
-                const v = row.data?.[f.key];
-                if (v === undefined || v === null)
-                    return '';
-                if (f.type === 'url') {
-                    const s = String(v);
-                    if (!s.trim())
+        const dynamicCols = visibleFields.map((f) => {
+            // Map form field types to DataTable filter types
+            let filterType = 'string';
+            let filterOptions;
+            switch (f.type) {
+                case 'number':
+                    filterType = 'number';
+                    break;
+                case 'date':
+                case 'datetime':
+                    filterType = 'date';
+                    break;
+                case 'checkbox':
+                    filterType = 'boolean';
+                    break;
+                case 'select':
+                    filterType = 'select';
+                    filterOptions = (f.config?.options || []).map((opt) => ({
+                        value: typeof opt === 'string' ? opt : opt.value,
+                        label: typeof opt === 'string' ? opt : opt.label,
+                    }));
+                    break;
+            }
+            return {
+                key: f.key,
+                label: f.label,
+                sortable: false,
+                filterType,
+                filterOptions,
+                render: (_, row) => {
+                    const v = row.data?.[f.key];
+                    if (v === undefined || v === null)
                         return '';
-                    return (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: s, target: "_blank", rel: "noreferrer", children: s }));
-                }
-                if (f.type === 'datetime' || f.type === 'date') {
-                    try {
-                        const date = new Date(String(v));
-                        if (!isNaN(date.getTime())) {
-                            return f.type === 'datetime'
-                                ? date.toLocaleString()
-                                : date.toLocaleDateString();
+                    if (f.type === 'url') {
+                        const s = String(v);
+                        if (!s.trim())
+                            return '';
+                        return (_jsx("a", { className: "text-sm hover:text-blue-500 underline", href: s, target: "_blank", rel: "noreferrer", children: s }));
+                    }
+                    if (f.type === 'datetime' || f.type === 'date') {
+                        try {
+                            const date = new Date(String(v));
+                            if (!isNaN(date.getTime())) {
+                                return f.type === 'datetime'
+                                    ? date.toLocaleString()
+                                    : date.toLocaleDateString();
+                            }
+                        }
+                        catch {
+                            // Fall through to string display
                         }
                     }
-                    catch {
-                        // Fall through to string display
+                    // Friendly display for reference fields
+                    if (Array.isArray(v)) {
+                        return v
+                            .map((x) => x?.label || x?.entryId || x?.entityId || '')
+                            .filter(Boolean)
+                            .join(', ');
                     }
-                }
-                // Friendly display for reference fields
-                if (Array.isArray(v)) {
-                    return v
-                        .map((x) => x?.label || x?.entryId || x?.entityId || '')
-                        .filter(Boolean)
-                        .join(', ');
-                }
-                if (typeof v === 'object') {
-                    return v.label || v.entryId || v.entityId || '';
-                }
-                return String(v);
-            },
-        }));
+                    if (typeof v === 'object') {
+                        return v.label || v.entryId || v.entityId || '';
+                    }
+                    return String(v);
+                },
+            };
+        });
         return [
             ...dynamicCols,
             {
@@ -96,7 +128,7 @@ export function EntryList({ id, onNavigate }) {
             updatedAt: e.updatedAt,
         }));
     }, [data]);
-    return (_jsxs(Page, { title: form?.name || '', description: form?.scope === 'private' ? 'Private entries (owner-only)' : 'Project entries', actions: _jsx("div", { className: "flex items-center gap-2", children: _jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/new`), children: [_jsx(Plus, { size: 16, className: "mr-2" }), "New Entry"] }) }), children: [error && (_jsx(Alert, { variant: "error", title: "Error loading entries", children: error.message })), _jsx(Card, { children: _jsx(DataTable, { columns: columns, data: rows, emptyMessage: "No entries yet", loading: loading, searchable: true, pageSize: 25, onRowClick: (row) => navigate(`/forms/${formId}/entries/${row.id}`) }) })] }));
+    return (_jsxs(Page, { title: form?.name || '', description: form?.scope === 'private' ? 'Private entries (owner-only)' : 'Project entries', actions: _jsx("div", { className: "flex items-center gap-2", children: _jsxs(Button, { variant: "primary", onClick: () => navigate(`/forms/${formId}/entries/new`), children: [_jsx(Plus, { size: 16, className: "mr-2" }), "New Entry"] }) }), children: [error && (_jsx(Alert, { variant: "error", title: "Error loading entries", children: error.message })), _jsx(Card, { children: _jsx(DataTable, { columns: columns, data: rows, emptyMessage: "No entries yet", loading: loading, searchable: true, pageSize: 25, onRowClick: (row) => navigate(`/forms/${formId}/entries/${row.id}`), tableId: `form.${formId}`, enableViews: true, onViewFiltersChange: handleViewFiltersChange }) })] }));
 }
 export default EntryList;
 //# sourceMappingURL=EntryList.js.map
