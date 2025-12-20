@@ -77,7 +77,16 @@ export function FormBuilder({ id, onNavigate }: Props) {
   const [viewBuilderSaving, setViewBuilderSaving] = useState(false);
 
   // Metrics configuration
-  const [metricsConfig, setMetricsConfig] = useState<Array<{ title: string; metricKey: string; agg: string; bucket: string; days: number }>>([]);
+  const [metricsConfig, setMetricsConfig] = useState<
+    Array<{
+      title: string;
+      metricKey: string;
+      agg: string;
+      bucket: string;
+      days: number;
+      cumulative?: 'range' | 'all_time';
+    }>
+  >([]);
   const [metricsCatalog, setMetricsCatalog] = useState<Record<string, any>>({});
 
   // Fetch available nav paths for tree picker
@@ -950,6 +959,21 @@ export function FormBuilder({ id, onNavigate }: Props) {
                         { value: 'max', label: 'Max' },
                         { value: 'min', label: 'Min' },
                         { value: 'count', label: 'Count' },
+                      ]}
+                    />
+                    <Select
+                      label="Accumulation"
+                      value={(panel as any).cumulative || ''}
+                      onChange={(v: string) => {
+                        const nextVal = v === 'range' || v === 'all_time' ? v : undefined;
+                        const next = [...metricsConfig];
+                        next[idx] = { ...next[idx], cumulative: nextVal };
+                        setMetricsConfig(next);
+                      }}
+                      options={[
+                        { value: '', label: 'None' },
+                        { value: 'range', label: 'Cumulative (Range)' },
+                        { value: 'all_time', label: 'Cumulative (All-time)' },
                       ]}
                     />
                     <Select

@@ -12,6 +12,37 @@ function getAuthHeaders() {
 function toDateInput(d) {
     return d.toISOString();
 }
+function formatValue(value, unit) {
+    if (!Number.isFinite(value))
+        return '';
+    const u = String(unit || '').toLowerCase();
+    if (u === 'usd' || u === '$') {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(value);
+    }
+    // default numeric
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+}
+function formatAxisTick(value, unit) {
+    if (!Number.isFinite(value))
+        return '';
+    const u = String(unit || '').toLowerCase();
+    if (u === 'usd' || u === '$') {
+        // compact on axis for readability
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            notation: 'compact',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        }).format(value);
+    }
+    return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(value);
+}
 function isoDateOnly(d) {
     // YYYY-MM-DD
     const y = d.getFullYear();
@@ -70,6 +101,33 @@ export function MetricsPanel(props) {
         setCustomError(null);
         setPreset('custom');
     };
+    const [catalogByKey, setCatalogByKey] = useState({});
+    useEffect(() => {
+        let cancelled = false;
+        async function loadCatalog() {
+            try {
+                const res = await fetch('/api/metrics/catalog', { credentials: 'include', headers: { ...getAuthHeaders() } });
+                if (!res.ok)
+                    return;
+                const json = await res.json().catch(() => null);
+                const items = Array.isArray(json?.items) ? json.items : [];
+                const map = {};
+                for (const it of items) {
+                    if (it && typeof it.key === 'string')
+                        map[it.key] = it;
+                }
+                if (!cancelled)
+                    setCatalogByKey(map);
+            }
+            catch {
+                // ignore
+            }
+        }
+        loadCatalog();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     return (_jsxs("div", { className: "space-y-4", children: [_jsxs(Card, { children: [_jsxs("div", { className: "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", children: [_jsx("div", { className: "text-lg font-semibold", children: "Metrics" }), _jsxs("div", { className: "flex flex-col gap-2 sm:flex-row sm:items-end", children: [_jsx(Select, { label: "Range", value: preset, onChange: (v) => {
                                             setCustomError(null);
                                             setPreset(v);
@@ -81,18 +139,65 @@ export function MetricsPanel(props) {
                                             { value: '1y', label: '1y' },
                                             { value: 'all', label: 'All' },
                                             { value: 'custom', label: 'Custom' },
-                                        ] }), preset === 'custom' && (_jsxs("div", { className: "flex flex-col gap-2 sm:flex-row sm:items-end", children: [_jsxs("label", { className: "text-sm", children: [_jsx("div", { className: "mb-1 text-muted-foreground", children: "Start" }), _jsx("input", { className: "h-10 px-3 rounded-md border border-gray-300 bg-white text-sm", type: "date", value: customStart, onChange: (e) => setCustomStart(e.target.value) })] }), _jsxs("label", { className: "text-sm", children: [_jsx("div", { className: "mb-1 text-muted-foreground", children: "End" }), _jsx("input", { className: "h-10 px-3 rounded-md border border-gray-300 bg-white text-sm", type: "date", value: customEnd, onChange: (e) => setCustomEnd(e.target.value) })] }), _jsx(Button, { variant: "secondary", onClick: handleApplyCustom, children: "Apply" })] }))] })] }), customError && (_jsx("div", { className: "mt-3", children: _jsx(Alert, { variant: "error", title: "Range error", children: customError }) }))] }), panels.map((p, idx) => (_jsx(MetricsPanelItem, { entityKind: props.entityKind, entityId: props.entityId, panel: p, range: range }, `${p.metricKey}-${idx}`)))] }));
+                                        ] }), preset === 'custom' && (_jsxs("div", { className: "flex flex-col gap-2 sm:flex-row sm:items-end", children: [_jsxs("label", { className: "text-sm", children: [_jsx("div", { className: "mb-1 text-muted-foreground", children: "Start" }), _jsx("input", { className: "h-10 px-3 rounded-md border border-gray-300 bg-white text-sm", type: "date", value: customStart, onChange: (e) => setCustomStart(e.target.value) })] }), _jsxs("label", { className: "text-sm", children: [_jsx("div", { className: "mb-1 text-muted-foreground", children: "End" }), _jsx("input", { className: "h-10 px-3 rounded-md border border-gray-300 bg-white text-sm", type: "date", value: customEnd, onChange: (e) => setCustomEnd(e.target.value) })] }), _jsx(Button, { variant: "secondary", onClick: handleApplyCustom, children: "Apply" })] }))] })] }), customError && (_jsx("div", { className: "mt-3", children: _jsx(Alert, { variant: "error", title: "Range error", children: customError }) }))] }), panels.map((p, idx) => (_jsx(MetricsPanelItem, { entityKind: props.entityKind, entityId: props.entityId, panel: p, range: range, unit: catalogByKey[p.metricKey]?.unit }, `${p.metricKey}-${idx}`)))] }));
 }
 function MetricsPanelItem(props) {
     const { Card, Alert } = useUi();
     const title = props.panel.title || props.panel.metricKey;
     const bucket = props.panel.bucket || 'day';
     const agg = props.panel.agg || 'sum';
+    const cumulative = props.panel.cumulative;
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [rows, setRows] = useState([]);
+    const [baseline, setBaseline] = useState(0);
     const start = props.range?.start;
     const end = props.range?.end;
+    // For cumulative all-time, compute baseline total before start.
+    useEffect(() => {
+        let cancelled = false;
+        async function run() {
+            if (!start || !cumulative || cumulative !== 'all_time') {
+                setBaseline(0);
+                return;
+            }
+            try {
+                const baselineEnd = new Date(start.getTime() - 1);
+                const res = await fetch('/api/metrics/query', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getAuthHeaders(),
+                    },
+                    body: JSON.stringify({
+                        metricKey: props.panel.metricKey,
+                        bucket: 'none',
+                        agg: 'sum',
+                        start: '2000-01-01T00:00:00.000Z',
+                        end: toDateInput(baselineEnd),
+                        entityKind: props.entityKind,
+                        entityId: props.entityId,
+                        dimensions: props.panel.dimensions || undefined,
+                    }),
+                });
+                if (!res.ok)
+                    return;
+                const json = await res.json().catch(() => null);
+                const v = Array.isArray(json?.data) && json.data[0]?.value != null ? Number(json.data[0].value) : 0;
+                if (!cancelled)
+                    setBaseline(Number.isFinite(v) ? v : 0);
+            }
+            catch {
+                if (!cancelled)
+                    setBaseline(0);
+            }
+        }
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [props.entityKind, props.entityId, props.panel.metricKey, cumulative, start?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
     useEffect(() => {
         let cancelled = false;
         async function run() {
@@ -146,19 +251,34 @@ function MetricsPanelItem(props) {
     }, [props.entityKind, props.entityId, props.panel.metricKey, bucket, agg, start?.toISOString(), end?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
     const chartData = useMemo(() => {
         // Expect rows like { bucket: '2025-01-01T00:00:00.000Z', value: '123.45' }
-        return rows
+        const base = rows
             .map((r) => ({
             bucket: r.bucket ? String(r.bucket) : '',
             value: r.value === null || r.value === undefined ? null : Number(r.value),
         }))
             .filter((r) => r.bucket && Number.isFinite(r.value));
+        if (!cumulative)
+            return base;
+        let running = cumulative === 'all_time' ? baseline : 0;
+        return base.map((r) => {
+            running += Number(r.value);
+            return { ...r, value: running };
+        });
+    }, [rows, cumulative, baseline]);
+    const rangeTotal = useMemo(() => {
+        if (!rows || rows.length === 0)
+            return null;
+        const s = rows.reduce((acc, r) => acc + (r?.value == null ? 0 : Number(r.value)), 0);
+        return Number.isFinite(s) ? s : null;
     }, [rows]);
     const latestValue = useMemo(() => {
         if (chartData.length === 0)
             return null;
         return chartData[chartData.length - 1].value;
     }, [chartData]);
-    return (_jsxs(Card, { children: [_jsxs("div", { className: "flex items-baseline justify-between gap-4 mb-3", children: [_jsx("div", { className: "text-lg font-semibold", children: title }), _jsx("div", { className: "text-sm text-muted-foreground", children: latestValue === null ? '' : latestValue.toLocaleString() })] }), error ? (_jsx(Alert, { variant: "error", title: "Metrics error", children: error })) : loading ? (_jsx("div", { className: "text-sm text-muted-foreground", children: "Loading\u2026" })) : chartData.length === 0 ? (_jsx("div", { className: "text-sm text-muted-foreground", children: "No data" })) : (_jsx(ResponsiveContainer, { width: "100%", height: 220, children: _jsxs(LineChart, { data: chartData, children: [_jsx(CartesianGrid, { strokeDasharray: "3 3" }), _jsx(XAxis, { dataKey: "bucket", tickFormatter: (v) => {
+    return (_jsxs(Card, { children: [_jsxs("div", { className: "flex items-baseline justify-between gap-4 mb-3", children: [_jsx("div", { className: "text-lg font-semibold", children: title }), _jsx("div", { className: "text-sm text-muted-foreground", children: latestValue === null ? '' : formatValue(latestValue, props.unit) })] }), cumulative && rangeTotal !== null && (_jsx("div", { className: "text-xs text-muted-foreground mb-2", children: cumulative === 'range'
+                    ? `Range total: ${formatValue(rangeTotal, props.unit)}`
+                    : `Range total: ${formatValue(rangeTotal, props.unit)} · All-time: ${formatValue((baseline || 0) + rangeTotal, props.unit)}` })), error ? (_jsx(Alert, { variant: "error", title: "Metrics error", children: error })) : loading ? (_jsx("div", { className: "text-sm text-muted-foreground", children: "Loading\u2026" })) : chartData.length === 0 ? (_jsx("div", { className: "text-sm text-muted-foreground", children: "No data" })) : (_jsx(ResponsiveContainer, { width: "100%", height: 220, children: _jsxs(LineChart, { data: chartData, children: [_jsx(CartesianGrid, { strokeDasharray: "3 3" }), _jsx(XAxis, { dataKey: "bucket", tickFormatter: (v) => {
                                 try {
                                     const d = new Date(String(v));
                                     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -166,7 +286,7 @@ function MetricsPanelItem(props) {
                                 catch {
                                     return String(v);
                                 }
-                            } }), _jsx(YAxis, {}), _jsx(Tooltip, { formatter: (v) => (typeof v === 'number' ? v.toLocaleString() : String(v)), labelFormatter: (v) => {
+                            } }), _jsx(YAxis, { tickFormatter: (v) => formatAxisTick(Number(v), props.unit) }), _jsx(Tooltip, { formatter: (v) => (typeof v === 'number' ? formatValue(v, props.unit) : String(v)), labelFormatter: (v) => {
                                 try {
                                     return new Date(String(v)).toLocaleString();
                                 }

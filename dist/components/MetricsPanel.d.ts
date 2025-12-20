@@ -6,7 +6,12 @@ export type MetricsViewMetadata = {
         metricKey: string;
         bucket?: Bucket;
         agg?: Agg;
-        days?: number;
+        /**
+         * If set, display as a cumulative running total:
+         * - range: starts at 0 at the beginning of the selected range
+         * - all_time: starts at cumulative total since 2000-01-01 up to the start of range
+         */
+        cumulative?: 'range' | 'all_time';
         dimensions?: Record<string, string | number | boolean | null>;
     }>;
 };

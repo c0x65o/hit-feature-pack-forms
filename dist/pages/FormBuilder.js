@@ -477,6 +477,15 @@ export function FormBuilder({ id, onNavigate }) {
                                                         { value: 'max', label: 'Max' },
                                                         { value: 'min', label: 'Min' },
                                                         { value: 'count', label: 'Count' },
+                                                    ] }), _jsx(Select, { label: "Accumulation", value: panel.cumulative || '', onChange: (v) => {
+                                                        const nextVal = v === 'range' || v === 'all_time' ? v : undefined;
+                                                        const next = [...metricsConfig];
+                                                        next[idx] = { ...next[idx], cumulative: nextVal };
+                                                        setMetricsConfig(next);
+                                                    }, options: [
+                                                        { value: '', label: 'None' },
+                                                        { value: 'range', label: 'Cumulative (Range)' },
+                                                        { value: 'all_time', label: 'Cumulative (All-time)' },
                                                     ] }), _jsx(Select, { label: "Time Bucket", value: panel.bucket, onChange: (v) => {
                                                         const next = [...metricsConfig];
                                                         next[idx] = { ...next[idx], bucket: v };

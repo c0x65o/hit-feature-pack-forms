@@ -21,7 +21,12 @@ export type MetricsViewMetadata = {
     metricKey: string;
     bucket?: Bucket;
     agg?: Agg;
-    days?: number; // default window
+    /**
+     * If set, display as a cumulative running total:
+     * - range: starts at 0 at the beginning of the selected range
+     * - all_time: starts at cumulative total since 2000-01-01 up to the start of range
+     */
+    cumulative?: 'range' | 'all_time';
     dimensions?: Record<string, string | number | boolean | null>;
   }>;
 };
@@ -37,6 +42,43 @@ function toDateInput(d: Date): string {
 }
 
 type RangePreset = '30d' | '60d' | '90d' | '6m' | '1y' | 'all' | 'custom';
+
+type MetricCatalogItem = {
+  key: string;
+  label?: string;
+  unit?: string; // e.g. usd, count
+};
+
+function formatValue(value: number, unit: string | undefined): string {
+  if (!Number.isFinite(value)) return '';
+  const u = String(unit || '').toLowerCase();
+  if (u === 'usd' || u === '$') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+  // default numeric
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatAxisTick(value: number, unit: string | undefined): string {
+  if (!Number.isFinite(value)) return '';
+  const u = String(unit || '').toLowerCase();
+  if (u === 'usd' || u === '$') {
+    // compact on axis for readability
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(value);
+}
 
 function isoDateOnly(d: Date): string {
   // YYYY-MM-DD
@@ -99,6 +141,30 @@ export function MetricsPanel(props: {
     setCustomError(null);
     setPreset('custom');
   };
+
+  const [catalogByKey, setCatalogByKey] = useState<Record<string, MetricCatalogItem>>({});
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCatalog() {
+      try {
+        const res = await fetch('/api/metrics/catalog', { credentials: 'include', headers: { ...getAuthHeaders() } });
+        if (!res.ok) return;
+        const json = await res.json().catch(() => null);
+        const items: any[] = Array.isArray(json?.items) ? json.items : [];
+        const map: Record<string, MetricCatalogItem> = {};
+        for (const it of items) {
+          if (it && typeof it.key === 'string') map[it.key] = it as MetricCatalogItem;
+        }
+        if (!cancelled) setCatalogByKey(map);
+      } catch {
+        // ignore
+      }
+    }
+    loadCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -167,6 +233,7 @@ export function MetricsPanel(props: {
           entityId={props.entityId}
           panel={p}
           range={range}
+          unit={catalogByKey[p.metricKey]?.unit}
         />
       ))}
     </div>
@@ -181,22 +248,67 @@ function MetricsPanelItem(props: {
     metricKey: string;
     bucket?: Bucket;
     agg?: Agg;
-    days?: number;
+    cumulative?: 'range' | 'all_time';
     dimensions?: Record<string, string | number | boolean | null>;
   };
   range: { start: Date; end: Date } | null;
+  unit?: string;
 }) {
   const { Card, Alert } = useUi();
   const title = props.panel.title || props.panel.metricKey;
   const bucket: Bucket = props.panel.bucket || 'day';
   const agg: Agg = props.panel.agg || 'sum';
+  const cumulative = props.panel.cumulative;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
+  const [baseline, setBaseline] = useState<number>(0);
 
   const start = props.range?.start;
   const end = props.range?.end;
+
+  // For cumulative all-time, compute baseline total before start.
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      if (!start || !cumulative || cumulative !== 'all_time') {
+        setBaseline(0);
+        return;
+      }
+      try {
+        const baselineEnd = new Date(start.getTime() - 1);
+        const res = await fetch('/api/metrics/query', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            metricKey: props.panel.metricKey,
+            bucket: 'none',
+            agg: 'sum',
+            start: '2000-01-01T00:00:00.000Z',
+            end: toDateInput(baselineEnd),
+            entityKind: props.entityKind,
+            entityId: props.entityId,
+            dimensions: props.panel.dimensions || undefined,
+          }),
+        });
+        if (!res.ok) return;
+        const json = await res.json().catch(() => null);
+        const v = Array.isArray(json?.data) && json.data[0]?.value != null ? Number(json.data[0].value) : 0;
+        if (!cancelled) setBaseline(Number.isFinite(v) ? v : 0);
+      } catch {
+        if (!cancelled) setBaseline(0);
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [props.entityKind, props.entityId, props.panel.metricKey, cumulative, start?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,12 +359,24 @@ function MetricsPanelItem(props: {
 
   const chartData = useMemo(() => {
     // Expect rows like { bucket: '2025-01-01T00:00:00.000Z', value: '123.45' }
-    return rows
+    const base = rows
       .map((r: any) => ({
         bucket: r.bucket ? String(r.bucket) : '',
         value: r.value === null || r.value === undefined ? null : Number(r.value),
       }))
       .filter((r: any) => r.bucket && Number.isFinite(r.value));
+    if (!cumulative) return base;
+    let running = cumulative === 'all_time' ? baseline : 0;
+    return base.map((r: any) => {
+      running += Number(r.value);
+      return { ...r, value: running };
+    });
+  }, [rows, cumulative, baseline]);
+
+  const rangeTotal = useMemo(() => {
+    if (!rows || rows.length === 0) return null;
+    const s = rows.reduce((acc: number, r: any) => acc + (r?.value == null ? 0 : Number(r.value)), 0);
+    return Number.isFinite(s) ? s : null;
   }, [rows]);
 
   const latestValue = useMemo(() => {
@@ -265,9 +389,16 @@ function MetricsPanelItem(props: {
       <div className="flex items-baseline justify-between gap-4 mb-3">
         <div className="text-lg font-semibold">{title}</div>
         <div className="text-sm text-muted-foreground">
-          {latestValue === null ? '' : latestValue.toLocaleString()}
+          {latestValue === null ? '' : formatValue(latestValue, props.unit)}
         </div>
       </div>
+      {cumulative && rangeTotal !== null && (
+        <div className="text-xs text-muted-foreground mb-2">
+          {cumulative === 'range'
+            ? `Range total: ${formatValue(rangeTotal, props.unit)}`
+            : `Range total: ${formatValue(rangeTotal, props.unit)} · All-time: ${formatValue((baseline || 0) + rangeTotal, props.unit)}`}
+        </div>
+      )}
 
       {error ? (
         <Alert variant="error" title="Metrics error">
@@ -292,9 +423,9 @@ function MetricsPanelItem(props: {
                 }
               }}
             />
-            <YAxis />
+            <YAxis tickFormatter={(v: any) => formatAxisTick(Number(v), props.unit)} />
             <Tooltip
-              formatter={(v: any) => (typeof v === 'number' ? v.toLocaleString() : String(v))}
+              formatter={(v: any) => (typeof v === 'number' ? formatValue(v, props.unit) : String(v))}
               labelFormatter={(v) => {
                 try {
                   return new Date(String(v)).toLocaleString();
@@ -310,5 +441,6 @@ function MetricsPanelItem(props: {
     </Card>
   );
 }
+
 
 
