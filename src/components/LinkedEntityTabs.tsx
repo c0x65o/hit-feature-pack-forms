@@ -266,11 +266,41 @@ export function LinkedEntityTabs({
               )}
 
               {hasMetrics && mode === 'metrics' ? (
-                <MetricsPanel
-                  entityKind={selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind}
-                  entityIds={(entriesData?.items || []).map((it: any) => String(it.id))}
-                  metrics={metricsMeta!}
-                />
+                (() => {
+                  // By default, linked-form metrics are scoped to the linked entries themselves:
+                  //   entityKind = `forms_${formSlug}`, entityIds = entry IDs
+                  //
+                  // However, some ingest pipelines (notably Steam CSVs) historically scoped points to the *project*
+                  // instead of the storefront entry. For storefronts, we provide a pragmatic fallback:
+                  // if the entry rows contain a `project.entityId`, we scope metrics to those project IDs.
+                  const defaultKind = selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind;
+                  const defaultIds = (entriesData?.items || []).map((it: any) => String(it.id));
+
+                  let metricsEntityKind = defaultKind;
+                  let metricsEntityIds = defaultIds;
+
+                  if (selectedFormInfo?.formSlug === 'storefronts') {
+                    const projIds = Array.from(
+                      new Set(
+                        (entriesData?.items || [])
+                          .map((it: any) => String(it?.data?.project?.entityId || '').trim())
+                          .filter(Boolean)
+                      )
+                    );
+                    if (projIds.length > 0) {
+                      metricsEntityKind = 'project';
+                      metricsEntityIds = projIds;
+                    }
+                  }
+
+                  return (
+                    <MetricsPanel
+                      entityKind={metricsEntityKind}
+                      entityIds={metricsEntityIds}
+                      metrics={metricsMeta!}
+                    />
+                  );
+                })()
               ) : (
                 <DataTable
                   columns={columns as any}

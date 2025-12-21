@@ -171,7 +171,28 @@ export function LinkedEntityTabs({ entity, overview, overviewLabel = 'Overview',
     return (_jsxs("div", { children: [tabs.length > 0 && (_jsx("div", { style: { marginBottom: '24px' }, children: _jsx(Tabs, { tabs: tabs, value: activeTab, onValueChange: handleTabChange }) })), activeTab === 'overview' ? (_jsx(_Fragment, { children: overview })) : (_jsx(Card, { title: selectedFormInfo?.formName || 'Linked Entries', children: !selectedFormInfo ? (_jsx("div", { style: { textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }, children: "Loading form information..." })) : entriesLoading ? (_jsx("div", { style: { textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }, children: "Loading entries..." })) : (entriesData?.items || []).length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }, children: ["No entries found for this ", entity.kind, "."] })) : (_jsxs(_Fragment, { children: [hasMetrics && (_jsx("div", { style: { marginBottom: 16 }, children: _jsx(Tabs, { tabs: [
                                     { id: 'list', label: 'List', content: null },
                                     { id: 'metrics', label: 'Metrics', content: null },
-                                ], value: mode, onValueChange: (v) => setMode(v) }) })), hasMetrics && mode === 'metrics' ? (_jsx(MetricsPanel, { entityKind: selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind, entityIds: (entriesData?.items || []).map((it) => String(it.id)), metrics: metricsMeta })) : (_jsx(DataTable, { columns: columns, data: filteredRows, emptyMessage: "No entries found", loading: entriesLoading || formsLoading, searchable: true, pageSize: pageSize, page: page, total: entriesData?.pagination.total, onPageChange: setPage, manualPagination: true, onRefresh: refreshEntries, refreshing: entriesLoading, tableId: `forms.entries.${selectedFormInfo.formId}`, enableViews: true, onViewFiltersChange: (filters) => setViewFilters(filters), onRowClick: (row) => {
+                                ], value: mode, onValueChange: (v) => setMode(v) }) })), hasMetrics && mode === 'metrics' ? ((() => {
+                            // By default, linked-form metrics are scoped to the linked entries themselves:
+                            //   entityKind = `forms_${formSlug}`, entityIds = entry IDs
+                            //
+                            // However, some ingest pipelines (notably Steam CSVs) historically scoped points to the *project*
+                            // instead of the storefront entry. For storefronts, we provide a pragmatic fallback:
+                            // if the entry rows contain a `project.entityId`, we scope metrics to those project IDs.
+                            const defaultKind = selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind;
+                            const defaultIds = (entriesData?.items || []).map((it) => String(it.id));
+                            let metricsEntityKind = defaultKind;
+                            let metricsEntityIds = defaultIds;
+                            if (selectedFormInfo?.formSlug === 'storefronts') {
+                                const projIds = Array.from(new Set((entriesData?.items || [])
+                                    .map((it) => String(it?.data?.project?.entityId || '').trim())
+                                    .filter(Boolean)));
+                                if (projIds.length > 0) {
+                                    metricsEntityKind = 'project';
+                                    metricsEntityIds = projIds;
+                                }
+                            }
+                            return (_jsx(MetricsPanel, { entityKind: metricsEntityKind, entityIds: metricsEntityIds, metrics: metricsMeta }));
+                        })()) : (_jsx(DataTable, { columns: columns, data: filteredRows, emptyMessage: "No entries found", loading: entriesLoading || formsLoading, searchable: true, pageSize: pageSize, page: page, total: entriesData?.pagination.total, onPageChange: setPage, manualPagination: true, onRefresh: refreshEntries, refreshing: entriesLoading, tableId: `forms.entries.${selectedFormInfo.formId}`, enableViews: true, onViewFiltersChange: (filters) => setViewFilters(filters), onRowClick: (row) => {
                                 const href = rowHref({ formId: selectedFormInfo.formId, entryId: String(row.id) });
                                 safeNavigate(href, onNavigate);
                             } }))] })) }))] }));
