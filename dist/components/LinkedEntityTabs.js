@@ -84,12 +84,14 @@ export function LinkedEntityTabs({ entity, overview, overviewLabel = 'Overview',
         setPage(1);
         setViewFilters([]);
     }, [setActiveTab]);
+    const effectivePage = mode === 'metrics' ? 1 : page;
+    const effectivePageSize = mode === 'metrics' ? 1000 : pageSize;
     const { data: entriesData, loading: entriesLoading, refresh: refreshEntries } = useLinkedFormEntries(activeTab !== 'overview' && selectedFormInfo
         ? {
             formId: selectedFormInfo.formId,
             entity,
             entityFieldKey: selectedFormInfo.entityFieldKey,
-            options: { page, pageSize },
+            options: { page: effectivePage, pageSize: effectivePageSize },
         }
         : null);
     const visibleFields = useMemo(() => {
@@ -105,7 +107,8 @@ export function LinkedEntityTabs({ entity, overview, overviewLabel = 'Overview',
                 label: f.label,
                 sortable: false,
                 render: (_, row) => {
-                    const v = row.data?.[f.key];
+                    // Form fields are now flattened onto the row (row.platform instead of row.data.platform)
+                    const v = row[f.key];
                     if (v === undefined || v === null)
                         return '';
                     if (f.type === 'url') {
@@ -150,9 +153,12 @@ export function LinkedEntityTabs({ entity, overview, overviewLabel = 'Overview',
         ];
     }, [visibleFields]);
     const rows = useMemo(() => {
+        // Flatten form data onto the row so grouping and column access work correctly.
+        // Form fields become top-level properties (e.g., row.platform instead of row.data.platform)
         return (entriesData?.items || []).map((e) => ({
             id: e.id,
-            data: e.data,
+            ...e.data, // Spread form fields onto row for grouping/sorting
+            _formData: e.data, // Keep original data for reference if needed
             updatedAt: e.updatedAt,
         }));
     }, [entriesData?.items]);
@@ -165,7 +171,7 @@ export function LinkedEntityTabs({ entity, overview, overviewLabel = 'Overview',
     return (_jsxs("div", { children: [tabs.length > 0 && (_jsx("div", { style: { marginBottom: '24px' }, children: _jsx(Tabs, { tabs: tabs, value: activeTab, onValueChange: handleTabChange }) })), activeTab === 'overview' ? (_jsx(_Fragment, { children: overview })) : (_jsx(Card, { title: selectedFormInfo?.formName || 'Linked Entries', children: !selectedFormInfo ? (_jsx("div", { style: { textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }, children: "Loading form information..." })) : entriesLoading ? (_jsx("div", { style: { textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }, children: "Loading entries..." })) : (entriesData?.items || []).length === 0 ? (_jsxs("div", { style: { textAlign: 'center', padding: '24px', color: 'var(--hit-muted-foreground, #64748b)' }, children: ["No entries found for this ", entity.kind, "."] })) : (_jsxs(_Fragment, { children: [hasMetrics && (_jsx("div", { style: { marginBottom: 16 }, children: _jsx(Tabs, { tabs: [
                                     { id: 'list', label: 'List', content: null },
                                     { id: 'metrics', label: 'Metrics', content: null },
-                                ], value: mode, onValueChange: (v) => setMode(v) }) })), hasMetrics && mode === 'metrics' ? (_jsx(MetricsPanel, { entityKind: entity.kind, entityId: entity.id, metrics: metricsMeta })) : (_jsx(DataTable, { columns: columns, data: filteredRows, emptyMessage: "No entries found", loading: entriesLoading || formsLoading, searchable: true, pageSize: pageSize, page: page, total: entriesData?.pagination.total, onPageChange: setPage, manualPagination: true, onRefresh: refreshEntries, refreshing: entriesLoading, tableId: `forms.entries.${selectedFormInfo.formId}`, enableViews: true, onViewFiltersChange: (filters) => setViewFilters(filters), onRowClick: (row) => {
+                                ], value: mode, onValueChange: (v) => setMode(v) }) })), hasMetrics && mode === 'metrics' ? (_jsx(MetricsPanel, { entityKind: selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind, entityIds: (entriesData?.items || []).map((it) => String(it.id)), metrics: metricsMeta })) : (_jsx(DataTable, { columns: columns, data: filteredRows, emptyMessage: "No entries found", loading: entriesLoading || formsLoading, searchable: true, pageSize: pageSize, page: page, total: entriesData?.pagination.total, onPageChange: setPage, manualPagination: true, onRefresh: refreshEntries, refreshing: entriesLoading, tableId: `forms.entries.${selectedFormInfo.formId}`, enableViews: true, onViewFiltersChange: (filters) => setViewFilters(filters), onRowClick: (row) => {
                                 const href = rowHref({ formId: selectedFormInfo.formId, entryId: String(row.id) });
                                 safeNavigate(href, onNavigate);
                             } }))] })) }))] }));

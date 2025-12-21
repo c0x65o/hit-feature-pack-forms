@@ -15,9 +15,11 @@ export function EntryList({ id, onNavigate }: Props) {
   const formId = id as string;
 
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<string>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [activeFilters, setActiveFilters] = useState<Array<{ field: string; operator: string; value: any }>>([]);
   const { form, version } = useForm(formId);
-  const { data, loading, error, refresh } = useEntries({ formId, page, pageSize: 25 });
+  const { data, loading, error, refresh } = useEntries({ formId, page, pageSize: 25, sortBy, sortOrder });
   const { deleteEntry, loading: mutating } = useEntryMutations(formId);
 
   const navigate = (path: string) => {
@@ -34,6 +36,42 @@ export function EntryList({ id, onNavigate }: Props) {
   const handleViewFiltersChange = useCallback((filters: Array<{ field: string; operator: string; value: any }>) => {
     setActiveFilters(filters);
     // TODO: Apply filters to data fetching when server-side filtering is implemented
+  }, []);
+
+  // Handle sorting changes from view system
+  const handleViewSortingChange = useCallback((sorting: Array<{ id: string; desc: boolean }>) => {
+    if (sorting.length > 0) {
+      const firstSort = sorting[0];
+      setSortBy(firstSort.id);
+      setSortOrder(firstSort.desc ? 'desc' : 'asc');
+      setPage(1); // Reset to first page when sorting changes
+    } else {
+      // Default sort
+      setSortBy('updatedAt');
+      setSortOrder('desc');
+    }
+  }, []);
+
+  const parseSelectOptions = useCallback((f: any): Array<{ value: string; label: string }> => {
+    // Support both optionsText (from seed files) and options array (from form builder)
+    if (f.config?.optionsText) {
+      const text = String(f.config.optionsText).trim();
+      if (!text) return [];
+      return text
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter(Boolean)
+        .map((line: string) => {
+          const [value, label] = line.split('|');
+          return { value: (value || '').trim(), label: (label || value || '').trim() };
+        })
+        .filter((o) => o.value);
+    }
+    // Fallback to options array format
+    return (f.config?.options || []).map((opt: any) => ({
+      value: typeof opt === 'string' ? opt : opt.value,
+      label: typeof opt === 'string' ? opt : opt.label,
+    }));
   }, []);
 
   const columns = useMemo(() => {
@@ -55,22 +93,31 @@ export function EntryList({ id, onNavigate }: Props) {
           break;
         case 'select':
           filterType = 'select';
-          filterOptions = (f.config?.options || []).map((opt: any) => ({
-            value: typeof opt === 'string' ? opt : opt.value,
-            label: typeof opt === 'string' ? opt : opt.label,
-          }));
+          filterOptions = parseSelectOptions(f);
           break;
       }
 
+      // Enable sorting for all field types - DataTable will sort by the rendered value
       return {
         key: f.key,
         label: f.label,
-        sortable: false,
+        sortable: true, // Enable sorting for all columns
         filterType,
         filterOptions,
         render: (_: unknown, row: any) => {
-        const v = row.data?.[f.key];
+        // Form fields are flattened onto the row (e.g., row.platform) for sorting/grouping.
+        // Keep the original raw form data around for label lookups/rendering.
+        const raw = row?._formData || row?.data || {};
+        const v = raw?.[f.key];
         if (v === undefined || v === null) return '';
+        // Select fields should display the option label, not the stored value/key
+        if (f.type === 'select' && filterOptions?.length) {
+          const optionMap = new Map(filterOptions.map((o) => [String(o.value), String(o.label)]));
+          if (Array.isArray(v)) {
+            return v.map((x: any) => optionMap.get(String(x)) || String(x)).join(', ');
+          }
+          return optionMap.get(String(v)) || String(v);
+        }
         if (f.type === 'url') {
           const s = String(v);
           if (!s.trim()) return '';
@@ -146,12 +193,15 @@ export function EntryList({ id, onNavigate }: Props) {
         ),
       },
     ];
-  }, [visibleFields, formId, navigate, deleteEntry, refresh, mutating]);
+  }, [visibleFields, formId, navigate, deleteEntry, refresh, mutating, parseSelectOptions]);
 
   const rows = useMemo(() => {
+    // Flatten form data onto the row so grouping and column access work correctly.
+    // Form fields become top-level properties (e.g., row.platform instead of row.data.platform)
     return (data?.items || []).map((e) => ({
       id: e.id,
-      data: e.data,
+      ...e.data, // Spread form fields onto row for grouping/sorting
+      _formData: e.data, // Keep original data for reference if needed
       updatedAt: e.updatedAt,
     }));
   }, [data]);
@@ -183,10 +233,18 @@ export function EntryList({ id, onNavigate }: Props) {
           loading={loading}
           searchable
           pageSize={25}
+          page={page}
+          total={data?.pagination.total}
+          onPageChange={(newPage) => {
+            setPage(newPage);
+          }}
+          manualPagination
+          initialSorting={[{ id: sortBy, desc: sortOrder === 'desc' }]}
           onRowClick={(row) => navigate(`/forms/${formId}/entries/${row.id}`)}
           tableId={`form.${formId}`}
           enableViews={true}
           onViewFiltersChange={handleViewFiltersChange}
+          onViewSortingChange={handleViewSortingChange}
           onRefresh={refresh}
           refreshing={loading}
         />

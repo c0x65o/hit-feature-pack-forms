@@ -13,11 +13,17 @@ export type MetricsViewMetadata = {
          */
         cumulative?: 'range' | 'all_time';
         dimensions?: Record<string, string | number | boolean | null>;
+        /**
+         * When entityKind is "project", overlay project activity timeline on the chart.
+         * Defaults to true for project pages (unless explicitly set to false).
+         */
+        timelineOverlay?: boolean;
     }>;
 };
 export declare function MetricsPanel(props: {
     entityKind: string;
-    entityId: string;
+    entityId?: string;
+    entityIds?: string[];
     metrics: MetricsViewMetadata;
 }): import("react/jsx-runtime").JSX.Element | null;
 export {};

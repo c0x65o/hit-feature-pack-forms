@@ -124,13 +124,16 @@ export function LinkedEntityTabs({
     [setActiveTab]
   );
 
+  const effectivePage = mode === 'metrics' ? 1 : page;
+  const effectivePageSize = mode === 'metrics' ? 1000 : pageSize;
+
   const { data: entriesData, loading: entriesLoading, refresh: refreshEntries } = useLinkedFormEntries(
     activeTab !== 'overview' && selectedFormInfo
       ? {
           formId: selectedFormInfo.formId,
           entity,
           entityFieldKey: selectedFormInfo.entityFieldKey,
-          options: { page, pageSize },
+          options: { page: effectivePage, pageSize: effectivePageSize },
         }
       : null
   );
@@ -149,7 +152,8 @@ export function LinkedEntityTabs({
         label: f.label,
         sortable: false,
         render: (_: unknown, row: any) => {
-          const v = row.data?.[f.key];
+          // Form fields are now flattened onto the row (row.platform instead of row.data.platform)
+          const v = row[f.key];
           if (v === undefined || v === null) return '';
 
           if (f.type === 'url') {
@@ -201,9 +205,12 @@ export function LinkedEntityTabs({
   }, [visibleFields]);
 
   const rows = useMemo(() => {
+    // Flatten form data onto the row so grouping and column access work correctly.
+    // Form fields become top-level properties (e.g., row.platform instead of row.data.platform)
     return (entriesData?.items || []).map((e: any) => ({
       id: e.id,
-      data: e.data,
+      ...e.data, // Spread form fields onto row for grouping/sorting
+      _formData: e.data, // Keep original data for reference if needed
       updatedAt: e.updatedAt,
     }));
   }, [entriesData?.items]);
@@ -259,7 +266,11 @@ export function LinkedEntityTabs({
               )}
 
               {hasMetrics && mode === 'metrics' ? (
-                <MetricsPanel entityKind={entity.kind} entityId={entity.id} metrics={metricsMeta!} />
+                <MetricsPanel
+                  entityKind={selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind}
+                  entityIds={(entriesData?.items || []).map((it: any) => String(it.id))}
+                  metrics={metricsMeta!}
+                />
               ) : (
                 <DataTable
                   columns={columns as any}

@@ -9,6 +9,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
+  ReferenceArea,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -28,6 +30,11 @@ export type MetricsViewMetadata = {
      */
     cumulative?: 'range' | 'all_time';
     dimensions?: Record<string, string | number | boolean | null>;
+    /**
+     * When entityKind is "project", overlay project activity timeline on the chart.
+     * Defaults to true for project pages (unless explicitly set to false).
+     */
+    timelineOverlay?: boolean;
   }>;
 };
 
@@ -112,7 +119,8 @@ function computeRange(preset: RangePreset, customStart?: string, customEnd?: str
 
 export function MetricsPanel(props: {
   entityKind: string;
-  entityId: string;
+  entityId?: string;
+  entityIds?: string[];
   metrics: MetricsViewMetadata;
 }) {
   const { Card, Select, Button, Alert } = useUi();
@@ -242,7 +250,8 @@ export function MetricsPanel(props: {
 
 function MetricsPanelItem(props: {
   entityKind: string;
-  entityId: string;
+  entityId?: string;
+  entityIds?: string[];
   panel: {
     title?: string;
     metricKey: string;
@@ -250,6 +259,8 @@ function MetricsPanelItem(props: {
     agg?: Agg;
     cumulative?: 'range' | 'all_time';
     dimensions?: Record<string, string | number | boolean | null>;
+    /** Defaults to true for project pages (entityKind=project) unless explicitly set false. */
+    timelineOverlay?: boolean;
   };
   range: { start: Date; end: Date } | null;
   unit?: string;
@@ -267,6 +278,16 @@ function MetricsPanelItem(props: {
 
   const start = props.range?.start;
   const end = props.range?.end;
+  const entityIds = useMemo(() => {
+    const ids = Array.isArray(props.entityIds) ? props.entityIds.filter((x) => typeof x === 'string' && x.trim()) : [];
+    if (ids.length > 0) return ids;
+    return props.entityId ? [props.entityId] : [];
+  }, [props.entityIds, props.entityId]);
+
+  const overlayEnabled = props.entityKind === 'project' && entityIds.length === 1 && props.panel.timelineOverlay !== false;
+  const [timelineEvents, setTimelineEvents] = useState<
+    Array<{ id: string; title: string; typeColor?: string | null; occurredAt: string; endAt?: string | null }>
+  >([]);
 
   // For cumulative all-time, compute baseline total before start.
   useEffect(() => {
@@ -278,28 +299,34 @@ function MetricsPanelItem(props: {
       }
       try {
         const baselineEnd = new Date(start.getTime() - 1);
-        const res = await fetch('/api/metrics/query', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify({
-            metricKey: props.panel.metricKey,
-            bucket: 'none',
-            agg: 'sum',
-            start: '2000-01-01T00:00:00.000Z',
-            end: toDateInput(baselineEnd),
-            entityKind: props.entityKind,
-            entityId: props.entityId,
-            dimensions: props.panel.dimensions || undefined,
+        const responses = await Promise.all(
+          entityIds.map(async (entityId) => {
+            const res = await fetch('/api/metrics/query', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders(),
+              },
+              body: JSON.stringify({
+                metricKey: props.panel.metricKey,
+                bucket: 'none',
+                agg: 'sum',
+                start: '2000-01-01T00:00:00.000Z',
+                end: toDateInput(baselineEnd),
+                entityKind: props.entityKind,
+                entityId,
+                dimensions: props.panel.dimensions || undefined,
+              }),
+            });
+            if (!res.ok) return 0;
+            const json = await res.json().catch(() => null);
+            const v = Array.isArray(json?.data) && json.data[0]?.value != null ? Number(json.data[0].value) : 0;
+            return Number.isFinite(v) ? v : 0;
           }),
-        });
-        if (!res.ok) return;
-        const json = await res.json().catch(() => null);
-        const v = Array.isArray(json?.data) && json.data[0]?.value != null ? Number(json.data[0].value) : 0;
-        if (!cancelled) setBaseline(Number.isFinite(v) ? v : 0);
+        );
+        const sum = responses.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+        if (!cancelled) setBaseline(Number.isFinite(sum) ? sum : 0);
       } catch {
         if (!cancelled) setBaseline(0);
       }
@@ -308,7 +335,7 @@ function MetricsPanelItem(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.entityKind, props.entityId, props.panel.metricKey, cumulative, start?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
+  }, [props.entityKind, JSON.stringify(entityIds), props.panel.metricKey, cumulative, start?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
 
   useEffect(() => {
     let cancelled = false;
@@ -320,30 +347,50 @@ function MetricsPanelItem(props: {
           setRows([]);
           return;
         }
-        const res = await fetch('/api/metrics/query', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify({
-            metricKey: props.panel.metricKey,
-            bucket,
-            agg,
-            start: toDateInput(start),
-            end: toDateInput(end),
-            entityKind: props.entityKind,
-            entityId: props.entityId,
-            dimensions: props.panel.dimensions || undefined,
+        const perEntity = await Promise.all(
+          entityIds.map(async (entityId) => {
+            const res = await fetch('/api/metrics/query', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders(),
+              },
+              body: JSON.stringify({
+                metricKey: props.panel.metricKey,
+                bucket,
+                agg,
+                start: toDateInput(start),
+                end: toDateInput(end),
+                entityKind: props.entityKind,
+                entityId,
+                dimensions: props.panel.dimensions || undefined,
+              }),
+            });
+            if (!res.ok) {
+              const json = await res.json().catch(() => ({}));
+              throw new Error(json?.error || `Query failed (${res.status})`);
+            }
+            const json = await res.json().catch(() => null);
+            return Array.isArray(json?.data) ? json.data : [];
           }),
-        });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          throw new Error(json?.error || `Query failed (${res.status})`);
+        );
+
+        // Merge by bucket by summing values across entities.
+        const merged = new Map<string, number>();
+        for (const rows of perEntity) {
+          for (const r of rows as any[]) {
+            const b = r?.bucket ? String(r.bucket) : '';
+            const v = r?.value === null || r?.value === undefined ? 0 : Number(r.value);
+            if (!b || !Number.isFinite(v)) continue;
+            merged.set(b, (merged.get(b) || 0) + v);
+          }
         }
-        const json = await res.json();
-        const data = Array.isArray(json?.data) ? json.data : [];
+
+        const data = Array.from(merged.entries())
+          .map(([bucket, value]) => ({ bucket, value }))
+          .sort((a, b) => a.bucket.localeCompare(b.bucket));
+
         if (!cancelled) setRows(data);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Failed to load metrics');
@@ -355,7 +402,50 @@ function MetricsPanelItem(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.entityKind, props.entityId, props.panel.metricKey, bucket, agg, start?.toISOString(), end?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
+  }, [props.entityKind, JSON.stringify(entityIds), props.panel.metricKey, bucket, agg, start?.toISOString(), end?.toISOString(), JSON.stringify(props.panel.dimensions || {})]);
+
+  // Load project timeline events for overlay (best-effort).
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      if (!overlayEnabled || !start || !end) {
+        setTimelineEvents([]);
+        return;
+      }
+      const projectId = entityIds[0];
+      try {
+        const qs = new URLSearchParams({
+          from: toDateInput(start),
+          to: toDateInput(end),
+          pageSize: '500',
+        });
+        const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/activity?${qs.toString()}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { ...getAuthHeaders() },
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || `Failed (${res.status})`);
+        const items = Array.isArray(json?.data) ? json.data : [];
+        const mapped = items
+          .map((a: any) => ({
+            id: String(a.id || ''),
+            title: String(a.title || a.description || a.activityType || 'Activity'),
+            typeColor: a?.activityTypeRecord?.color || null,
+            occurredAt: String(a.occurredAt || a.createdAt || ''),
+            endAt: a?.endAt ? String(a.endAt) : null,
+          }))
+          .filter((x: any) => x.id && x.occurredAt);
+        if (!cancelled) setTimelineEvents(mapped);
+      } catch {
+        if (!cancelled) setTimelineEvents([]);
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [overlayEnabled, JSON.stringify(entityIds), start?.toISOString(), end?.toISOString()]);
 
   const chartData = useMemo(() => {
     // Expect rows like { bucket: '2025-01-01T00:00:00.000Z', value: '123.45' }
@@ -372,6 +462,66 @@ function MetricsPanelItem(props: {
       return { ...r, value: running };
     });
   }, [rows, cumulative, baseline]);
+
+  const chartDataWithTs = useMemo(() => {
+    if (!overlayEnabled) return chartData;
+    return chartData
+      .map((d: any) => {
+        const ts = d.bucket ? new Date(String(d.bucket)).getTime() : NaN;
+        return { ...d, _ts: Number.isFinite(ts) ? ts : null };
+      })
+      .filter((d: any) => d._ts != null);
+  }, [chartData, overlayEnabled]);
+
+  const { referenceLines, referenceAreas } = useMemo(() => {
+    if (!overlayEnabled || chartDataWithTs.length === 0 || timelineEvents.length === 0) {
+      return { referenceLines: [] as React.ReactNode[], referenceAreas: [] as React.ReactNode[] };
+    }
+    const ts = chartDataWithTs.map((d: any) => Number(d._ts)).filter((n: any) => Number.isFinite(n));
+    if (ts.length === 0) return { referenceLines: [] as React.ReactNode[], referenceAreas: [] as React.ReactNode[] };
+    const minTs = Math.min(...ts);
+    const maxTs = Math.max(...ts);
+
+    const lines: React.ReactNode[] = [];
+    const areas: React.ReactNode[] = [];
+
+    for (const ev of timelineEvents) {
+      const startTs = new Date(ev.occurredAt).getTime();
+      if (!Number.isFinite(startTs)) continue;
+      const endTs = ev.endAt ? new Date(ev.endAt).getTime() : null;
+      const color = ev.typeColor || '#6b7280';
+      const intersects = endTs ? !(endTs < minTs || startTs > maxTs) : startTs >= minTs && startTs <= maxTs;
+      if (!intersects) continue;
+
+      if (endTs && endTs > startTs) {
+        areas.push(
+          <ReferenceArea
+            key={`area_${ev.id}`}
+            x1={Math.max(minTs, startTs)}
+            x2={Math.min(maxTs, endTs)}
+            fill={color}
+            fillOpacity={0.10}
+            stroke={color}
+            strokeWidth={1.5}
+            strokeDasharray="4 2"
+          />
+        );
+      } else {
+        lines.push(
+          <ReferenceLine
+            key={`line_${ev.id}`}
+            x={startTs}
+            stroke={color}
+            strokeWidth={2}
+            strokeDasharray="4 2"
+            strokeOpacity={0.7}
+          />
+        );
+      }
+    }
+
+    return { referenceLines: lines, referenceAreas: areas };
+  }, [overlayEnabled, chartDataWithTs, timelineEvents]);
 
   const rangeTotal = useMemo(() => {
     if (!rows || rows.length === 0) return null;
@@ -410,13 +560,16 @@ function MetricsPanelItem(props: {
         <div className="text-sm text-muted-foreground">No data</div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={chartData}>
+          <LineChart data={overlayEnabled ? chartDataWithTs : chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
-              dataKey="bucket"
+              dataKey={overlayEnabled ? '_ts' : 'bucket'}
+              type={overlayEnabled ? 'number' : undefined}
+              scale={overlayEnabled ? 'time' : undefined}
+              domain={overlayEnabled ? ['dataMin', 'dataMax'] : undefined}
               tickFormatter={(v) => {
                 try {
-                  const d = new Date(String(v));
+                  const d = new Date(overlayEnabled ? Number(v) : String(v));
                   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 } catch {
                   return String(v);
@@ -428,13 +581,16 @@ function MetricsPanelItem(props: {
               formatter={(v: any) => (typeof v === 'number' ? formatValue(v, props.unit) : String(v))}
               labelFormatter={(v) => {
                 try {
-                  return new Date(String(v)).toLocaleString();
+                  return new Date(overlayEnabled ? Number(v) : String(v)).toLocaleString();
                 } catch {
                   return String(v);
                 }
               }}
             />
             <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} dot={false} />
+            {/* Timeline overlays must be direct children of LineChart */}
+            {overlayEnabled ? referenceLines : null}
+            {overlayEnabled ? referenceAreas : null}
           </LineChart>
         </ResponsiveContainer>
       )}
