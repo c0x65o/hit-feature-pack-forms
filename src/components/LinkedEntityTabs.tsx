@@ -269,7 +269,10 @@ export function LinkedEntityTabs({
                 (() => {
                   // Linked-form metrics are scoped to the linked entries themselves:
                   //   entityKind = `forms_${formSlug}`, entityIds = entry IDs
-                  const defaultKind = selectedFormInfo?.formSlug ? `forms_${selectedFormInfo.formSlug}` : entity.kind;
+                  // IMPORTANT: form slugs can include hyphens (e.g. "social-channels") but metrics entity_kinds use underscores.
+                  const normalizedFormSlug =
+                    typeof selectedFormInfo?.formSlug === 'string' ? selectedFormInfo.formSlug.replace(/-/g, '_') : '';
+                  const defaultKind = normalizedFormSlug ? `forms_${normalizedFormSlug}` : entity.kind;
                   const defaultIds = (entriesData?.items || []).map((it: any) => String(it.id)).filter(Boolean);
 
                   let metricsEntityKind = defaultKind;
@@ -313,6 +316,11 @@ export function LinkedEntityTabs({
                     }
 
                     if (dedupedSteamIds.length > 0) metricsEntityIds = dedupedSteamIds;
+                  }
+                  if (selectedFormInfo?.formSlug === 'social-channels') {
+                    // Social metrics are typically per-project (entity_kind=project), not per social entry.
+                    metricsEntityKind = 'project';
+                    metricsEntityIds = [String(entity.id)];
                   }
 
                   return (
