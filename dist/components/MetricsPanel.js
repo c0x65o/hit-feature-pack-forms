@@ -25,6 +25,90 @@ function shouldShowMetricsDebug() {
 function toDateInput(d) {
     return d.toISOString();
 }
+let catalogCache = null;
+let catalogInflight = null;
+let catalogLastFetchedAt = 0;
+const CATALOG_TTL_MS = 60000;
+const queryCache = new Map();
+const queryInflight = new Map();
+const QUERY_TTL_MS = 30000;
+function stableStringify(value) {
+    // Minimal stable stringify for cache keys: sort object keys recursively.
+    const seen = new WeakSet();
+    const helper = (v) => {
+        if (v === null || typeof v !== 'object')
+            return v;
+        if (seen.has(v))
+            return '[Circular]';
+        seen.add(v);
+        if (Array.isArray(v))
+            return v.map(helper);
+        const out = {};
+        for (const k of Object.keys(v).sort())
+            out[k] = helper(v[k]);
+        return out;
+    };
+    return JSON.stringify(helper(value));
+}
+async function fetchMetricsCatalogCached() {
+    const now = Date.now();
+    if (catalogCache && now - catalogLastFetchedAt < CATALOG_TTL_MS)
+        return catalogCache;
+    if (catalogInflight)
+        return catalogInflight;
+    catalogInflight = (async () => {
+        try {
+            const res = await fetch('/api/metrics/catalog', { credentials: 'include', headers: { ...getAuthHeaders() } });
+            if (!res.ok)
+                return {};
+            const json = await res.json().catch(() => null);
+            const items = Array.isArray(json?.items) ? json.items : [];
+            const map = {};
+            for (const it of items) {
+                if (it && typeof it.key === 'string')
+                    map[it.key] = it;
+            }
+            catalogCache = map;
+            catalogLastFetchedAt = Date.now();
+            return map;
+        }
+        finally {
+            catalogInflight = null;
+        }
+    })();
+    return catalogInflight;
+}
+async function fetchMetricsQueryCached(body) {
+    const key = stableStringify(body);
+    const now = Date.now();
+    const cached = queryCache.get(key);
+    if (cached && now - cached.at < QUERY_TTL_MS)
+        return cached.data;
+    const inflight = queryInflight.get(key);
+    if (inflight)
+        return inflight;
+    const p = (async () => {
+        try {
+            const res = await fetch('/api/metrics/query', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                body: JSON.stringify(body),
+            });
+            const json = (await res.json().catch(() => ({})));
+            if (!res.ok)
+                throw new Error(json?.error || `Query failed (${res.status})`);
+            const data = Array.isArray(json?.data) ? json.data : [];
+            queryCache.set(key, { at: Date.now(), data });
+            return data;
+        }
+        finally {
+            queryInflight.delete(key);
+        }
+    })();
+    queryInflight.set(key, p);
+    return p;
+}
 function toPascal(s) {
     return String(s || '')
         .trim()
@@ -134,26 +218,15 @@ function GroupCurrentValue(props) {
             try {
                 if (!cancelled)
                     setLoading(true);
-                const res = await fetch('/api/metrics/query', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-                    body: JSON.stringify({
-                        metricKey: props.metricKey,
-                        bucket: 'none',
-                        agg: props.agg || 'last',
-                        end: toDateInput(end),
-                        entityKind: props.entityKind,
-                        entityIds: ids,
-                    }),
+                const rows = await fetchMetricsQueryCached({
+                    metricKey: props.metricKey,
+                    bucket: 'none',
+                    agg: props.agg || 'last',
+                    end: toDateInput(end),
+                    entityKind: props.entityKind,
+                    entityIds: ids,
                 });
-                if (!res.ok) {
-                    if (!cancelled)
-                        setValue(null);
-                    return;
-                }
-                const json = await res.json().catch(() => null);
-                const v = Array.isArray(json?.data) && json.data[0]?.value != null ? Number(json.data[0].value) : null;
+                const v = Array.isArray(rows) && rows[0]?.value != null ? Number(rows[0].value) : null;
                 if (!cancelled)
                     setValue(Number.isFinite(v) ? v : null);
             }
@@ -251,16 +324,7 @@ export function MetricsPanel(props) {
         let cancelled = false;
         async function loadCatalog() {
             try {
-                const res = await fetch('/api/metrics/catalog', { credentials: 'include', headers: { ...getAuthHeaders() } });
-                if (!res.ok)
-                    return;
-                const json = await res.json().catch(() => null);
-                const items = Array.isArray(json?.items) ? json.items : [];
-                const map = {};
-                for (const it of items) {
-                    if (it && typeof it.key === 'string')
-                        map[it.key] = it;
-                }
+                const map = await fetchMetricsCatalogCached();
                 if (!cancelled)
                     setCatalogByKey(map);
             }
@@ -343,31 +407,17 @@ function MetricsPanelItem(props) {
             }
             try {
                 const baselineEnd = new Date(start.getTime() - 1);
-                const res = await fetch('/api/metrics/query', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...getAuthHeaders(),
-                    },
-                    body: JSON.stringify({
-                        metricKey: props.panel.metricKey,
-                        bucket: 'none',
-                        agg: 'sum',
-                        start: '2000-01-01T00:00:00.000Z',
-                        end: toDateInput(baselineEnd),
-                        entityKind: props.entityKind,
-                        entityIds,
-                        dimensions: props.panel.dimensions || undefined,
-                    }),
+                const rows = await fetchMetricsQueryCached({
+                    metricKey: props.panel.metricKey,
+                    bucket: 'none',
+                    agg: 'sum',
+                    start: '2000-01-01T00:00:00.000Z',
+                    end: toDateInput(baselineEnd),
+                    entityKind: props.entityKind,
+                    entityIds,
+                    dimensions: props.panel.dimensions || undefined,
                 });
-                if (!res.ok) {
-                    if (!cancelled)
-                        setBaseline(0);
-                    return;
-                }
-                const json = await res.json().catch(() => null);
-                const v = Array.isArray(json?.data) && json.data[0]?.value != null ? Number(json.data[0].value) : 0;
+                const v = Array.isArray(rows) && rows[0]?.value != null ? Number(rows[0].value) : 0;
                 if (!cancelled)
                     setBaseline(Number.isFinite(v) ? v : 0);
             }
@@ -405,30 +455,17 @@ function MetricsPanelItem(props) {
                     });
                     return;
                 }
-                const res = await fetch('/api/metrics/query', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...getAuthHeaders(),
-                    },
-                    body: JSON.stringify({
-                        metricKey: props.panel.metricKey,
-                        bucket,
-                        agg,
-                        start: toDateInput(start),
-                        end: toDateInput(end),
-                        entityKind: props.entityKind,
-                        entityIds,
-                        dimensions: props.panel.dimensions || undefined,
-                    }),
+                const rowsRaw = await fetchMetricsQueryCached({
+                    metricKey: props.panel.metricKey,
+                    bucket,
+                    agg,
+                    start: toDateInput(start),
+                    end: toDateInput(end),
+                    entityKind: props.entityKind,
+                    entityIds,
+                    dimensions: props.panel.dimensions || undefined,
                 });
-                if (!res.ok) {
-                    const json = await res.json().catch(() => ({}));
-                    throw new Error(json?.error || `Query failed (${res.status})`);
-                }
-                const json = await res.json().catch(() => null);
-                const data = (Array.isArray(json?.data) ? json.data : [])
+                const data = (Array.isArray(rowsRaw) ? rowsRaw : [])
                     .map((r) => ({
                     bucket: r?.bucket ? String(r.bucket) : '',
                     value: r?.value === null || r?.value === undefined ? null : Number(r.value),
