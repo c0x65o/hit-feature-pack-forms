@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useUi } from '@hit/ui-kit';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { resolveLucideIconStrict } from '../utils/lucide-allowlist';
 import {
   LineChart,
   Line,
@@ -174,9 +174,8 @@ function toPascal(s: string): string {
 function resolveLucideIcon(name?: string) {
   const n = String(name || '').trim();
   if (!n) return null;
-  const key = toPascal(n);
-  const Comp = (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[key];
-  return Comp || null;
+  // Hard fail if configured icon is unknown.
+  return resolveLucideIconStrict(toPascal(n));
 }
 
 const MAX_GROUP_HEADER_CHIPS = 3;

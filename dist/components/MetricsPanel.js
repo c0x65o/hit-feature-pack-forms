@@ -3,7 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useMemo, useState } from 'react';
 import { useUi } from '@hit/ui-kit';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { resolveLucideIconStrict } from '../utils/lucide-allowlist';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ReferenceArea, ResponsiveContainer, } from 'recharts';
 function getAuthHeaders() {
     if (typeof window === 'undefined')
@@ -108,9 +108,8 @@ function resolveLucideIcon(name) {
     const n = String(name || '').trim();
     if (!n)
         return null;
-    const key = toPascal(n);
-    const Comp = LucideIcons[key];
-    return Comp || null;
+    // Hard fail if configured icon is unknown.
+    return resolveLucideIconStrict(toPascal(n));
 }
 const MAX_GROUP_HEADER_CHIPS = 3;
 function normalizeCssColor(input) {

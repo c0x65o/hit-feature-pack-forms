@@ -260,7 +260,7 @@ export function LinkedEntityTabs({
                       { id: 'metrics', label: 'Metrics', content: null },
                     ]}
                     value={mode}
-                    onValueChange={(v) => setMode(v as any)}
+                    onValueChange={(v: string) => setMode(v as any)}
                   />
                 </div>
               )}
@@ -347,7 +347,7 @@ export function LinkedEntityTabs({
                   refreshing={entriesLoading}
                   tableId={`forms.entries.${selectedFormInfo.formId}`}
                   enableViews={true}
-                  onViewFiltersChange={(filters) => setViewFilters(filters as any)}
+                  onViewFiltersChange={(filters: unknown) => setViewFilters(filters as any)}
                   onRowClick={(row: any) => {
                     const href = rowHref({ formId: selectedFormInfo.formId, entryId: String(row.id) });
                     safeNavigate(href, onNavigate);

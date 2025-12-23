@@ -171,7 +171,7 @@ export function EntryList({ id, onNavigate }: Props) {
         hideable: false,
         render: (_: unknown, row: any) => (
           <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="sm" onClick={(e) => {
+            <Button variant="ghost" size="sm" onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               navigate(`/forms/${formId}/entries/${row.id}/edit`);
             }}>
@@ -181,7 +181,7 @@ export function EntryList({ id, onNavigate }: Props) {
               variant="ghost"
               size="sm"
               disabled={mutating}
-              onClick={async (e) => {
+              onClick={async (e: React.MouseEvent) => {
                 e.stopPropagation();
                 if (!confirm('Delete this entry?')) return;
                 await deleteEntry(row.id);
@@ -236,7 +236,7 @@ export function EntryList({ id, onNavigate }: Props) {
           pageSize={pageSize}
           page={page}
           total={data?.pagination.total}
-          onPageChange={(newPage) => {
+          onPageChange={(newPage: number) => {
             setPage(newPage);
           }}
           manualPagination
@@ -246,7 +246,7 @@ export function EntryList({ id, onNavigate }: Props) {
             setPageSize(newSize);
             setPage(1);
           }}
-          onRowClick={(row) => navigate(`/forms/${formId}/entries/${row.id}`)}
+          onRowClick={(row: any) => navigate(`/forms/${formId}/entries/${row.id}`)}
           tableId={`form.${formId}`}
           enableViews={true}
           onViewFiltersChange={handleViewFiltersChange}
