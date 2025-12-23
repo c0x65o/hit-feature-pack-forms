@@ -26,29 +26,18 @@ export * from './hooks/index';
 // Navigation config
 export { navContributions as nav } from './nav';
 
-// Schema exports
-export {
-  forms,
-  formVersions,
-  formFields,
-  formEntries,
-  formEntryHistory,
-  formsAcls,
-  principalTypeEnum as formsPrincipalTypeEnum,
-  FORM_PERMISSIONS,
-  type Form,
-  type FormVersion,
-  type FormField,
-  type FormEntry,
-  type FormEntryHistory,
-  type FormsAcl,
-  type FormPermission,
-  type InsertForm,
-  type InsertFormVersion,
-  type InsertFormField,
-  type InsertFormEntry,
-  type InsertFormsAcl,
-} from './schema/forms';
+// Schema exports - REMOVED from main index to avoid bundling drizzle-orm in client!
+// Use: import { forms, ... } from '@hit/feature-pack-forms/schema'
+// Don't import from schema file at all - it pulls in drizzle-orm
+
+// Permission constants - defined inline to avoid pulling in schema file
+export const FORM_PERMISSIONS = {
+  READ: 'READ',
+  WRITE: 'WRITE',
+  DELETE: 'DELETE',
+  MANAGE_ACL: 'MANAGE_ACL',
+} as const;
+export type FormPermission = keyof typeof FORM_PERMISSIONS;
 
 // Component exports
 export { FormAclModal } from './components/FormAclModal';

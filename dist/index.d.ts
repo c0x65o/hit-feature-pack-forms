@@ -8,7 +8,13 @@
 export { FormList, FormListPage, FormBuilder, FormBuilderPage, EntryList, EntryListPage, EntryDetail, EntryDetailPage, EntryEdit, EntryEditPage, } from './pages/index';
 export * from './hooks/index';
 export { navContributions as nav } from './nav';
-export { forms, formVersions, formFields, formEntries, formEntryHistory, formsAcls, principalTypeEnum as formsPrincipalTypeEnum, FORM_PERMISSIONS, type Form, type FormVersion, type FormField, type FormEntry, type FormEntryHistory, type FormsAcl, type FormPermission, type InsertForm, type InsertFormVersion, type InsertFormField, type InsertFormEntry, type InsertFormsAcl, } from './schema/forms';
+export declare const FORM_PERMISSIONS: {
+    readonly READ: "READ";
+    readonly WRITE: "WRITE";
+    readonly DELETE: "DELETE";
+    readonly MANAGE_ACL: "MANAGE_ACL";
+};
+export type FormPermission = keyof typeof FORM_PERMISSIONS;
 export { FormAclModal } from './components/FormAclModal';
 export { LinkedEntityTabs } from './components/LinkedEntityTabs';
 export { MetricsPanel, type MetricsViewMetadata } from './components/MetricsPanel';
