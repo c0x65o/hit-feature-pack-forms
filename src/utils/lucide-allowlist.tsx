@@ -1,66 +1,10 @@
 /**
- * Hard-fail Lucide icon resolver using a small allowlist.
- *
- * DO NOT use `import * as LucideIcons from 'lucide-react'` — it pulls the entire icon set
- * into the module graph and destroys Next.js dev compile times.
+ * Lucide icon resolver using wildcard import.
  */
 'use client';
 
 import React from 'react';
-import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  Building,
-  Building2,
-  Calendar,
-  ChartBar,
-  CheckCircle,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  CirclePlay,
-  ClipboardList,
-  Clock,
-  Cog,
-  FileText,
-  Filter,
-  FolderKanban,
-  Gamepad2,
-  Heart,
-  Home,
-  Key,
-  Layers,
-  LayoutDashboard,
-  Link2,
-  List,
-  ListChecks,
-  Lock,
-  LogIn,
-  Mail,
-  MapPin,
-  Music,
-  Package,
-  Palette,
-  Plug,
-  Rocket,
-  Settings,
-  Share2,
-  Shield,
-  ShieldCheck,
-  ShoppingBag,
-  Store,
-  Tag,
-  TrendingUp,
-  Upload,
-  User,
-  UserPlus,
-  Users,
-  UsersRound,
-  Workflow,
-  Wrench,
-  DollarSign,
-} from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 
 export type LucideIconComponent = React.ComponentType<{
   size?: number | string;
@@ -68,61 +12,6 @@ export type LucideIconComponent = React.ComponentType<{
   className?: string;
   style?: React.CSSProperties;
 }>;
-
-const ICONS: Record<string, LucideIconComponent> = {
-  Activity,
-  BarChart3,
-  BookOpen,
-  Building,
-  Building2,
-  Calendar,
-  ChartBar,
-  CheckCircle,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  CirclePlay,
-  ClipboardList,
-  Clock,
-  Cog,
-  DollarSign,
-  FileText,
-  Filter,
-  FolderKanban,
-  Gamepad2,
-  Heart,
-  Home,
-  Key,
-  Layers,
-  LayoutDashboard,
-  Link2,
-  List,
-  ListChecks,
-  Lock,
-  LogIn,
-  Mail,
-  MapPin,
-  Music,
-  Package,
-  Palette,
-  Plug,
-  Rocket,
-  Settings,
-  Share2,
-  Shield,
-  ShieldCheck,
-  ShoppingBag,
-  Store,
-  Tag,
-  TrendingUp,
-  Upload,
-  User,
-  UserPlus,
-  Users,
-  UsersRound,
-  Workflow,
-  Wrench,
-};
 
 function toPascalFromKebab(name: string): string {
   return String(name || '')
@@ -146,14 +35,12 @@ export function resolveLucideIconStrict(name?: string | null): LucideIconCompone
   if (!key) {
     throw new Error(`[hit-feature-pack-forms] Lucide icon name is empty`);
   }
-  const Icon = ICONS[key];
+  const Icon = (LucideIcons as unknown as Record<string, LucideIconComponent>)[key];
   if (!Icon) {
     throw new Error(
       `[hit-feature-pack-forms] Unknown Lucide icon "${name}" (normalized: "${key}"). ` +
-        `Add it to forms/src/utils/lucide-allowlist.tsx or fix the config.`
+        `Check that the icon name is correct.`
     );
   }
   return Icon;
 }
-
-

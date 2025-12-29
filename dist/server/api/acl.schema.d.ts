@@ -1,15 +1,15 @@
 import { z } from "zod";
 export declare const postBodySchema: z.ZodObject<{
-    principalType: z.ZodString;
+    principalType: z.ZodEnum<["user", "role", "group"]>;
     principalId: z.ZodString;
-    permissions: z.ZodArray<z.ZodString, "many">;
+    permissions: z.ZodArray<z.ZodEnum<["READ", "WRITE", "MANAGE_ACL"]>, "many">;
 }, "strip", z.ZodTypeAny, {
-    principalType: string;
+    principalType: "role" | "user" | "group";
     principalId: string;
-    permissions: string[];
+    permissions: ("READ" | "WRITE" | "MANAGE_ACL")[];
 }, {
-    principalType: string;
+    principalType: "role" | "user" | "group";
     principalId: string;
-    permissions: string[];
+    permissions: ("READ" | "WRITE" | "MANAGE_ACL")[];
 }>;
 //# sourceMappingURL=acl.schema.d.ts.map
