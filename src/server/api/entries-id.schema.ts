@@ -4,5 +4,5 @@ import { z } from "zod";
 // - PUT /api/forms/[id]/entries/[entryId]
 
 export const putBodySchema = z.object({
-  data: z.record(z.any()),
+  data: z.record(z.string(), z.any()),
 });
