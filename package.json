@@ -1,6 +1,6 @@
 {
   "name": "@hit/feature-pack-forms",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "description": "Runtime Forms feature pack with builder + CRUD entries + search + reference linking. Uses @hit/ui-kit for shell-agnostic UI.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -43,6 +43,7 @@
   "peerDependencies": {
     "@hit/ui-kit": "*",
     "drizzle-orm": ">=0.30.0",
+    "zod": ">=3.22.0",
     "lucide-react": ">=0.263.0",
     "next": "^14.0.0",
     "react": "^18.0.0",
@@ -53,6 +54,7 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "drizzle-orm": "^0.30.0",
+    "zod": "^3.22.0",
     "lucide-react": "^0.460.0",
     "next": "^14.2.5",
     "recharts": "^2.0.0",
