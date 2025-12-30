@@ -40,7 +40,7 @@ export function EntryList({ id, onNavigate }: Props) {
   }, []);
 
   // Handle sorting changes from view system
-  const handleViewSortingChange = useCallback((sorting: Array<{ id: string; desc: boolean }>) => {
+  const handleViewSortingChange = useCallback((sorting: Array<{ id: string; desc?: boolean }>) => {
     if (sorting.length > 0) {
       const firstSort = sorting[0];
       setSortBy(firstSort.id);
