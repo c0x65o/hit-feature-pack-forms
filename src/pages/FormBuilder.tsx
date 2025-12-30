@@ -2,7 +2,16 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Plus, Save, ClipboardList, FileText, Share2, Eye, Star, Trash2, Edit2, BarChart3 } from 'lucide-react';
-import { useUi, useTableView, type BreadcrumbItem, type TableView, type TableViewFilter } from '@hit/ui-kit';
+import {
+  TableViewSharingPanel,
+  useUi,
+  useTableView,
+  type BreadcrumbItem,
+  type TableView,
+  type TableViewFilter,
+  type TableViewShare,
+  type TableViewShareRecipient,
+} from '@hit/ui-kit';
 import {
   FieldType,
   useForms,
@@ -42,6 +51,9 @@ export function FormBuilder({ id, onNavigate }: Props) {
     updateView, 
     deleteView,
     refresh: refreshViews,
+    getShares,
+    addShare,
+    removeShare,
   } = useTableView({ tableId });
 
   const navigate = (path: string) => {
@@ -75,6 +87,9 @@ export function FormBuilder({ id, onNavigate }: Props) {
   const [viewBuilderFilters, setViewBuilderFilters] = useState<TableViewFilter[]>([]);
   const [viewBuilderIsDefault, setViewBuilderIsDefault] = useState(false);
   const [viewBuilderSaving, setViewBuilderSaving] = useState(false);
+  const [viewShares, setViewShares] = useState<TableViewShare[]>([]);
+  const [viewSharesLoading, setViewSharesLoading] = useState(false);
+  const [pendingShareRecipients, setPendingShareRecipients] = useState<TableViewShareRecipient[]>([]);
 
   // Metrics configuration
   const [metricsConfig, setMetricsConfig] = useState<

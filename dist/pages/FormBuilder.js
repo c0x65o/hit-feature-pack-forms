@@ -2,7 +2,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Plus, Save, ClipboardList, FileText, Share2, Eye, Star, Trash2, Edit2, BarChart3 } from 'lucide-react';
-import { useUi, useTableView } from '@hit/ui-kit';
+import { useUi, useTableView, } from '@hit/ui-kit';
 import { useForms, useForm, useFormMutations, } from '../hooks/useForms';
 import { FormAclModal } from '../components/FormAclModal';
 function slugify(input) {
@@ -20,7 +20,7 @@ export function FormBuilder({ id, onNavigate }) {
     const { data: allForms } = useForms({ page: 1, pageSize: 200 });
     // Table views for entries list
     const tableId = id && !isNew ? `form.${id}` : '';
-    const { views, loading: viewsLoading, available: viewsAvailable, createView, updateView, deleteView, refresh: refreshViews, } = useTableView({ tableId });
+    const { views, loading: viewsLoading, available: viewsAvailable, createView, updateView, deleteView, refresh: refreshViews, getShares, addShare, removeShare, } = useTableView({ tableId });
     const navigate = (path) => {
         if (onNavigate)
             onNavigate(path);
@@ -50,6 +50,9 @@ export function FormBuilder({ id, onNavigate }) {
     const [viewBuilderFilters, setViewBuilderFilters] = useState([]);
     const [viewBuilderIsDefault, setViewBuilderIsDefault] = useState(false);
     const [viewBuilderSaving, setViewBuilderSaving] = useState(false);
+    const [viewShares, setViewShares] = useState([]);
+    const [viewSharesLoading, setViewSharesLoading] = useState(false);
+    const [pendingShareRecipients, setPendingShareRecipients] = useState([]);
     // Metrics configuration
     const [metricsConfig, setMetricsConfig] = useState([]);
     const [metricsCatalog, setMetricsCatalog] = useState({});

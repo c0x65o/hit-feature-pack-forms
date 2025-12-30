@@ -54,22 +54,22 @@ export declare const putBodySchema: z.ZodObject<{
         type: string;
         key: string;
         label: string;
+        defaultValue?: any;
+        hidden?: boolean | undefined;
         id?: string | undefined;
         order?: number | undefined;
-        hidden?: boolean | undefined;
         required?: boolean | undefined;
         config?: any;
-        defaultValue?: any;
     }, {
         type: string;
         key: string;
         label: string;
+        defaultValue?: any;
+        hidden?: boolean | undefined;
         id?: string | undefined;
         order?: number | undefined;
-        hidden?: boolean | undefined;
         required?: boolean | undefined;
         config?: any;
-        defaultValue?: any;
     }>, "many">>;
     draft: z.ZodOptional<z.ZodObject<{
         fields: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -86,22 +86,22 @@ export declare const putBodySchema: z.ZodObject<{
             type: string;
             key: string;
             label: string;
+            defaultValue?: any;
+            hidden?: boolean | undefined;
             id?: string | undefined;
             order?: number | undefined;
-            hidden?: boolean | undefined;
             required?: boolean | undefined;
             config?: any;
-            defaultValue?: any;
         }, {
             type: string;
             key: string;
             label: string;
+            defaultValue?: any;
+            hidden?: boolean | undefined;
             id?: string | undefined;
             order?: number | undefined;
-            hidden?: boolean | undefined;
             required?: boolean | undefined;
             config?: any;
-            defaultValue?: any;
         }>, "many">>;
         listConfig: z.ZodOptional<z.ZodAny>;
     }, "strip", z.ZodTypeAny, {
@@ -110,12 +110,12 @@ export declare const putBodySchema: z.ZodObject<{
             type: string;
             key: string;
             label: string;
+            defaultValue?: any;
+            hidden?: boolean | undefined;
             id?: string | undefined;
             order?: number | undefined;
-            hidden?: boolean | undefined;
             required?: boolean | undefined;
             config?: any;
-            defaultValue?: any;
         }[] | undefined;
     }, {
         listConfig?: any;
@@ -123,12 +123,12 @@ export declare const putBodySchema: z.ZodObject<{
             type: string;
             key: string;
             label: string;
+            defaultValue?: any;
+            hidden?: boolean | undefined;
             id?: string | undefined;
             order?: number | undefined;
-            hidden?: boolean | undefined;
             required?: boolean | undefined;
             config?: any;
-            defaultValue?: any;
         }[] | undefined;
     }>>;
     listConfig: z.ZodOptional<z.ZodAny>;
@@ -139,12 +139,12 @@ export declare const putBodySchema: z.ZodObject<{
             type: string;
             key: string;
             label: string;
+            defaultValue?: any;
+            hidden?: boolean | undefined;
             id?: string | undefined;
             order?: number | undefined;
-            hidden?: boolean | undefined;
             required?: boolean | undefined;
             config?: any;
-            defaultValue?: any;
         }[] | undefined;
     } | undefined;
     description?: string | null | undefined;
@@ -161,12 +161,12 @@ export declare const putBodySchema: z.ZodObject<{
         type: string;
         key: string;
         label: string;
+        defaultValue?: any;
+        hidden?: boolean | undefined;
         id?: string | undefined;
         order?: number | undefined;
-        hidden?: boolean | undefined;
         required?: boolean | undefined;
         config?: any;
-        defaultValue?: any;
     }[] | undefined;
 }, {
     draft?: {
@@ -175,12 +175,12 @@ export declare const putBodySchema: z.ZodObject<{
             type: string;
             key: string;
             label: string;
+            defaultValue?: any;
+            hidden?: boolean | undefined;
             id?: string | undefined;
             order?: number | undefined;
-            hidden?: boolean | undefined;
             required?: boolean | undefined;
             config?: any;
-            defaultValue?: any;
         }[] | undefined;
     } | undefined;
     description?: string | null | undefined;
@@ -197,12 +197,12 @@ export declare const putBodySchema: z.ZodObject<{
         type: string;
         key: string;
         label: string;
+        defaultValue?: any;
+        hidden?: boolean | undefined;
         id?: string | undefined;
         order?: number | undefined;
-        hidden?: boolean | undefined;
         required?: boolean | undefined;
         config?: any;
-        defaultValue?: any;
     }[] | undefined;
 }>;
 //# sourceMappingURL=forms.schema.d.ts.map
