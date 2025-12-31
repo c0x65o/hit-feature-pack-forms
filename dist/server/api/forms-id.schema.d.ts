@@ -19,27 +19,7 @@ export declare const putBodySchema: z.ZodObject<{
         required: z.ZodOptional<z.ZodBoolean>;
         config: z.ZodOptional<z.ZodNullable<z.ZodAny>>;
         defaultValue: z.ZodOptional<z.ZodNullable<z.ZodAny>>;
-    }, "strip", z.ZodTypeAny, {
-        type: string;
-        key: string;
-        label: string;
-        defaultValue?: any;
-        hidden?: boolean | undefined;
-        id?: string | undefined;
-        order?: number | undefined;
-        required?: boolean | undefined;
-        config?: any;
-    }, {
-        type: string;
-        key: string;
-        label: string;
-        defaultValue?: any;
-        hidden?: boolean | undefined;
-        id?: string | undefined;
-        order?: number | undefined;
-        required?: boolean | undefined;
-        config?: any;
-    }>, "many">>;
+    }, z.core.$strip>>>;
     draft: z.ZodOptional<z.ZodObject<{
         fields: z.ZodOptional<z.ZodArray<z.ZodObject<{
             id: z.ZodOptional<z.ZodString>;
@@ -51,127 +31,9 @@ export declare const putBodySchema: z.ZodObject<{
             required: z.ZodOptional<z.ZodBoolean>;
             config: z.ZodOptional<z.ZodNullable<z.ZodAny>>;
             defaultValue: z.ZodOptional<z.ZodNullable<z.ZodAny>>;
-        }, "strip", z.ZodTypeAny, {
-            type: string;
-            key: string;
-            label: string;
-            defaultValue?: any;
-            hidden?: boolean | undefined;
-            id?: string | undefined;
-            order?: number | undefined;
-            required?: boolean | undefined;
-            config?: any;
-        }, {
-            type: string;
-            key: string;
-            label: string;
-            defaultValue?: any;
-            hidden?: boolean | undefined;
-            id?: string | undefined;
-            order?: number | undefined;
-            required?: boolean | undefined;
-            config?: any;
-        }>, "many">>;
+        }, z.core.$strip>>>;
         listConfig: z.ZodOptional<z.ZodAny>;
-    }, "strip", z.ZodTypeAny, {
-        listConfig?: any;
-        fields?: {
-            type: string;
-            key: string;
-            label: string;
-            defaultValue?: any;
-            hidden?: boolean | undefined;
-            id?: string | undefined;
-            order?: number | undefined;
-            required?: boolean | undefined;
-            config?: any;
-        }[] | undefined;
-    }, {
-        listConfig?: any;
-        fields?: {
-            type: string;
-            key: string;
-            label: string;
-            defaultValue?: any;
-            hidden?: boolean | undefined;
-            id?: string | undefined;
-            order?: number | undefined;
-            required?: boolean | undefined;
-            config?: any;
-        }[] | undefined;
-    }>>;
+    }, z.core.$strip>>;
     listConfig: z.ZodOptional<z.ZodAny>;
-}, "strip", z.ZodTypeAny, {
-    draft?: {
-        listConfig?: any;
-        fields?: {
-            type: string;
-            key: string;
-            label: string;
-            defaultValue?: any;
-            hidden?: boolean | undefined;
-            id?: string | undefined;
-            order?: number | undefined;
-            required?: boolean | undefined;
-            config?: any;
-        }[] | undefined;
-    } | undefined;
-    description?: string | null | undefined;
-    name?: string | undefined;
-    navShow?: boolean | undefined;
-    navPlacement?: string | undefined;
-    navGroup?: string | undefined;
-    navWeight?: number | undefined;
-    navLabel?: string | null | undefined;
-    navIcon?: string | null | undefined;
-    navParentPath?: string | null | undefined;
-    listConfig?: any;
-    fields?: {
-        type: string;
-        key: string;
-        label: string;
-        defaultValue?: any;
-        hidden?: boolean | undefined;
-        id?: string | undefined;
-        order?: number | undefined;
-        required?: boolean | undefined;
-        config?: any;
-    }[] | undefined;
-}, {
-    draft?: {
-        listConfig?: any;
-        fields?: {
-            type: string;
-            key: string;
-            label: string;
-            defaultValue?: any;
-            hidden?: boolean | undefined;
-            id?: string | undefined;
-            order?: number | undefined;
-            required?: boolean | undefined;
-            config?: any;
-        }[] | undefined;
-    } | undefined;
-    description?: string | null | undefined;
-    name?: string | undefined;
-    navShow?: boolean | undefined;
-    navPlacement?: string | undefined;
-    navGroup?: string | undefined;
-    navWeight?: number | undefined;
-    navLabel?: string | null | undefined;
-    navIcon?: string | null | undefined;
-    navParentPath?: string | null | undefined;
-    listConfig?: any;
-    fields?: {
-        type: string;
-        key: string;
-        label: string;
-        defaultValue?: any;
-        hidden?: boolean | undefined;
-        id?: string | undefined;
-        order?: number | undefined;
-        required?: boolean | undefined;
-        config?: any;
-    }[] | undefined;
-}>;
+}, z.core.$strip>;
 //# sourceMappingURL=forms-id.schema.d.ts.map
