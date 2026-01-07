@@ -287,6 +287,8 @@ function GroupCurrentValue(props: {
   end: Date | undefined;
   unit?: string;
   agg?: Agg;
+  cumulative?: 'range' | 'all_time';
+  dimensions?: Record<string, string | number | boolean | null>;
   className?: string;
   placeholder?: string;
 }) {
@@ -296,13 +298,18 @@ function GroupCurrentValue(props: {
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      const start = props.start;
       const end = props.end;
       const ids = props.entityIds;
       if (!end || !props.metricKey || ids.length === 0) {
         if (!cancelled) setValue(null);
         return;
       }
+
+      // For cumulative all-time panels, the "current" value should reflect the
+      // all-time total up to `end` (not just the selected range total).
+      const effectiveStart =
+        props.cumulative === 'all_time' ? new Date('2000-01-01T00:00:00.000Z') : props.start;
+
       try {
         if (!cancelled) setLoading(true);
         const wantsLast = (props.agg || 'last') === 'last';
@@ -310,10 +317,11 @@ function GroupCurrentValue(props: {
           metricKey: props.metricKey,
           bucket: 'none',
           agg: props.agg || 'last',
-          ...(start ? { start: toDateInput(start) } : {}),
+          ...(effectiveStart ? { start: toDateInput(effectiveStart) } : {}),
           end: toDateInput(end),
           entityKind: props.entityKind,
           entityIds: ids,
+          dimensions: props.dimensions || undefined,
           groupByEntityId: wantsLast && ids.length > 1,
         });
         if (wantsLast && ids.length > 1) {
@@ -333,7 +341,16 @@ function GroupCurrentValue(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.entityKind, JSON.stringify(props.entityIds), props.metricKey, props.start?.toISOString(), props.end?.toISOString(), props.agg]);
+  }, [
+    props.entityKind,
+    JSON.stringify(props.entityIds),
+    props.metricKey,
+    props.start?.toISOString(),
+    props.end?.toISOString(),
+    props.agg,
+    props.cumulative,
+    JSON.stringify(props.dimensions || {}),
+  ]);
 
   if (loading) return <span className={props.className || 'text-sm text-muted-foreground'}>…</span>;
   if (value === null) return <span className={props.className || 'text-sm text-muted-foreground'}>{props.placeholder || '—'}</span>;
@@ -589,6 +606,8 @@ export function MetricsPanel(props: {
                         end={range?.end}
                         unit={catalogByKey[p.metricKey]?.unit}
                         agg={(p.agg || 'last') as any}
+                        cumulative={p.cumulative}
+                        dimensions={p.dimensions}
                         className="text-xs font-semibold tabular-nums"
                         placeholder="—"
                       />
