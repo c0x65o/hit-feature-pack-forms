@@ -23,10 +23,9 @@ export function FormBuilder({ id, onNavigate }) {
     const tableId = id && !isNew ? `form.${id}` : '';
     const { views, loading: viewsLoading, available: viewsAvailable, createView, updateView, deleteView, refresh: refreshViews, getShares, addShare, removeShare, } = useTableView({ tableId });
     const navigate = (path) => {
-        if (onNavigate)
-            onNavigate(path);
-        else if (typeof window !== 'undefined')
-            window.location.href = path;
+        if (!onNavigate)
+            throw new Error('[forms] FormBuilder requires onNavigate for client-side navigation');
+        onNavigate(path);
     };
     const [name, setName] = useState('');
     const [slug, setSlug] = useState('');

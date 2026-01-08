@@ -13,10 +13,9 @@ export function EntryEdit({ id, entryId, onNavigate }) {
     const { createEntry, updateEntry } = useEntryMutations(formId);
     const { submitting, error, fieldErrors, submit, clearError, setFieldErrors, clearFieldError } = useFormSubmit();
     const navigate = (path) => {
-        if (onNavigate)
-            onNavigate(path);
-        else if (typeof window !== 'undefined')
-            window.location.href = path;
+        if (!onNavigate)
+            throw new Error('[forms] EntryEdit requires onNavigate for client-side navigation');
+        onNavigate(path);
     };
     const fields = useMemo(() => {
         return (version?.fields || [])

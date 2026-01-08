@@ -10,10 +10,9 @@ export function EntryDetail({ id, entryId, onNavigate }) {
     const { entry, loading, error } = useEntry(formId, entryId);
     const { deleteEntry, loading: deleting } = useEntryMutations(formId);
     const navigate = (path) => {
-        if (onNavigate)
-            onNavigate(path);
-        else if (typeof window !== 'undefined')
-            window.location.href = path;
+        if (!onNavigate)
+            throw new Error('[forms] EntryDetail requires onNavigate for client-side navigation');
+        onNavigate(path);
     };
     const fields = (version?.fields || [])
         .filter((f) => !f.hidden)

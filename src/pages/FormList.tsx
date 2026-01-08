@@ -31,8 +31,8 @@ export function FormList({ onNavigate }: Props) {
   const { deleteForm, loading: mutating } = useFormMutations();
 
   const navigate = (path: string) => {
-    if (onNavigate) onNavigate(path);
-    else if (typeof window !== 'undefined') window.location.href = path;
+    if (!onNavigate) throw new Error('[forms] FormList requires onNavigate for client-side navigation');
+    onNavigate(path);
   };
 
   const rows = useMemo(() => {

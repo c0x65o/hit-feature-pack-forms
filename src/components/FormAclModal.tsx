@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useUi } from '@hit/ui-kit';
 import { AclPicker, type AclPickerConfig, type AclEntry } from '@hit/ui-kit';
+import { createFetchPrincipals } from '@hit/feature-pack-auth-core';
 import type { FormsAcl } from '../schema/forms';
 import { FORM_PERMISSIONS } from '../schema/forms';
 
@@ -64,6 +65,8 @@ export function FormAclModal({ formId, isOpen, onClose, onUpdate }: FormAclModal
       permissions: Array.isArray(acl.permissions) ? acl.permissions : [],
     }));
   }, [acls]);
+
+  const fetchPrincipals = useMemo(() => createFetchPrincipals({ isAdmin: true }), []);
 
   async function handleAdd(entry: Omit<AclEntry, 'id'>) {
     try {
@@ -182,6 +185,7 @@ export function FormAclModal({ formId, isOpen, onClose, onUpdate }: FormAclModal
           error={error?.message || null}
           onAdd={handleAdd}
           onRemove={handleRemove}
+          fetchPrincipals={fetchPrincipals}
         />
       </div>
     </Modal>

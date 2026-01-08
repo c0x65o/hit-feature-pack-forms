@@ -26,8 +26,8 @@ type ViewFilter = {
 };
 
 function safeNavigate(path: string, onNavigate?: (path: string) => void) {
-  if (onNavigate) return onNavigate(path);
-  window.location.href = path;
+  if (!onNavigate) throw new Error('[forms] LinkedEntityTabs requires onNavigate for client-side navigation');
+  return onNavigate(path);
 }
 
 function applyViewFilters<T extends Record<string, unknown>>(rows: T[], filters: ViewFilter[]): T[] {

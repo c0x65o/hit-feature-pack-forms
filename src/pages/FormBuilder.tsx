@@ -59,8 +59,8 @@ export function FormBuilder({ id, onNavigate }: Props) {
   } = useTableView({ tableId });
 
   const navigate = (path: string) => {
-    if (onNavigate) onNavigate(path);
-    else if (typeof window !== 'undefined') window.location.href = path;
+    if (!onNavigate) throw new Error('[forms] FormBuilder requires onNavigate for client-side navigation');
+    onNavigate(path);
   };
 
   const [name, setName] = useState('');

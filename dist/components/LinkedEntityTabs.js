@@ -8,9 +8,9 @@ function defaultRowHref(args) {
     return `/forms/${encodeURIComponent(args.formId)}/entries/${encodeURIComponent(args.entryId)}`;
 }
 function safeNavigate(path, onNavigate) {
-    if (onNavigate)
-        return onNavigate(path);
-    window.location.href = path;
+    if (!onNavigate)
+        throw new Error('[forms] LinkedEntityTabs requires onNavigate for client-side navigation');
+    return onNavigate(path);
 }
 function applyViewFilters(rows, filters) {
     if (!filters || filters.length === 0)

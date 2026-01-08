@@ -20,8 +20,8 @@ export function EntryDetail({ id, entryId, onNavigate }: Props) {
   const { deleteEntry, loading: deleting } = useEntryMutations(formId);
 
   const navigate = (path: string) => {
-    if (onNavigate) onNavigate(path);
-    else if (typeof window !== 'undefined') window.location.href = path;
+    if (!onNavigate) throw new Error('[forms] EntryDetail requires onNavigate for client-side navigation');
+    onNavigate(path);
   };
 
   const fields = (version?.fields || [])

@@ -53,6 +53,10 @@ api:
       methods: [GET, PUT, DELETE]
       handler: "@hit/feature-pack-forms/server/api/forms-id"
       description: "Get, update, or delete a form"
+    - path: /api/forms/[id]/schema
+      methods: [GET]
+      handler: "@hit/feature-pack-forms/server/api/forms-id-schema"
+      description: "Get a platform-agnostic schema for a form (fields + configs) for non-React clients"
     - path: /api/forms/[id]/entries
       methods: [GET, POST]
       handler: "@hit/feature-pack-forms/server/api/entries"

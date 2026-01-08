@@ -5,7 +5,7 @@ import { formsAcls, forms } from '@/lib/feature-pack-schemas';
 import { eq, desc, and, or, inArray } from 'drizzle-orm';
 import { extractUserFromRequest } from '../auth';
 import { FORM_PERMISSIONS } from '../../schema/forms';
-import { resolveUserPrincipals } from '@/lib/acl-utils';
+import { resolveUserPrincipals } from '@hit/feature-pack-auth-core/server/lib/acl-utils';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 /**

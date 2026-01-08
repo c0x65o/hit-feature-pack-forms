@@ -22,8 +22,8 @@ export function EntryEdit({ id, entryId, onNavigate }: Props) {
   const { submitting, error, fieldErrors, submit, clearError, setFieldErrors, clearFieldError } = useFormSubmit();
 
   const navigate = (path: string) => {
-    if (onNavigate) onNavigate(path);
-    else if (typeof window !== 'undefined') window.location.href = path;
+    if (!onNavigate) throw new Error('[forms] EntryEdit requires onNavigate for client-side navigation');
+    onNavigate(path);
   };
 
   const fields = useMemo(() => {

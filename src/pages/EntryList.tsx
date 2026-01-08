@@ -33,8 +33,8 @@ export function EntryList({ id, onNavigate }: Props) {
   const { deleteEntry, loading: mutating } = useEntryMutations(formId);
 
   const navigate = (path: string) => {
-    if (onNavigate) onNavigate(path);
-    else if (typeof window !== 'undefined') window.location.href = path;
+    if (!onNavigate) throw new Error('[forms] EntryList requires onNavigate for client-side navigation');
+    onNavigate(path);
   };
 
   const visibleFields = (version?.fields || [])

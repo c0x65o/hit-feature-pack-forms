@@ -3,6 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState, useEffect, useMemo } from 'react';
 import { useUi } from '@hit/ui-kit';
 import { AclPicker } from '@hit/ui-kit';
+import { createFetchPrincipals } from '@hit/feature-pack-auth-core';
 import { FORM_PERMISSIONS } from '../schema/forms';
 function getAuthHeaders() {
     if (typeof window === 'undefined')
@@ -55,6 +56,7 @@ export function FormAclModal({ formId, isOpen, onClose, onUpdate }) {
             permissions: Array.isArray(acl.permissions) ? acl.permissions : [],
         }));
     }, [acls]);
+    const fetchPrincipals = useMemo(() => createFetchPrincipals({ isAdmin: true }), []);
     async function handleAdd(entry) {
         try {
             setError(null);
@@ -146,7 +148,7 @@ export function FormAclModal({ formId, isOpen, onClose, onUpdate }) {
             emptyMessage: 'No access permissions set. Click "Add Access" to grant permissions.',
         },
     }), []);
-    return (_jsx(Modal, { open: isOpen, onClose: onClose, title: "Form Sharing", size: "lg", children: _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: '1rem' }, children: [error && (_jsx(Alert, { variant: "error", title: "Error", children: error.message })), _jsx(AclPicker, { config: formAclConfig, entries: aclEntries, loading: loading, error: error?.message || null, onAdd: handleAdd, onRemove: handleRemove })] }) }));
+    return (_jsx(Modal, { open: isOpen, onClose: onClose, title: "Form Sharing", size: "lg", children: _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: '1rem' }, children: [error && (_jsx(Alert, { variant: "error", title: "Error", children: error.message })), _jsx(AclPicker, { config: formAclConfig, entries: aclEntries, loading: loading, error: error?.message || null, onAdd: handleAdd, onRemove: handleRemove, fetchPrincipals: fetchPrincipals })] }) }));
 }
 export default FormAclModal;
 //# sourceMappingURL=FormAclModal.js.map
