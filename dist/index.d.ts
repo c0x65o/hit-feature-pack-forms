@@ -1,5 +1,5 @@
 /**
- * @hit/feature-pack-forms
+ * @hit/feature-pack-form-core
  *
  * Runtime Forms feature pack: form builder + CRUD entries + search + reference linking.
  *

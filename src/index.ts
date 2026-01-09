@@ -1,5 +1,5 @@
 /**
- * @hit/feature-pack-forms
+ * @hit/feature-pack-form-core
  *
  * Runtime Forms feature pack: form builder + CRUD entries + search + reference linking.
  *
@@ -27,7 +27,7 @@ export * from './hooks/index';
 export { navContributions as nav } from './nav';
 
 // Schema exports - REMOVED from main index to avoid bundling drizzle-orm in client!
-// Use: import { forms, ... } from '@hit/feature-pack-forms/schema'
+// Use: import { forms, ... } from '@hit/feature-pack-form-core/schema'
 // Don't import from schema file at all - it pulls in drizzle-orm
 
 // Permission constants - defined inline to avoid pulling in schema file

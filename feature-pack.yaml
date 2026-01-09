@@ -1,7 +1,7 @@
-# Feature Pack: forms
+# Feature Pack: form-core
 # Runtime-configurable custom forms (builder + CRUD entries)
 
-name: forms
+name: form-core
 description: Runtime Forms feature pack with builder + CRUD entries + search + reference linking
 
 # Route definitions - mapped to React components
@@ -47,35 +47,35 @@ api:
   routes:
     - path: /api/forms
       methods: [GET, POST]
-      handler: "@hit/feature-pack-forms/server/api/forms"
+      handler: "@hit/feature-pack-form-core/server/api/forms"
       description: "List forms (GET) or create form (POST)"
     - path: /api/forms/[id]
       methods: [GET, PUT, DELETE]
-      handler: "@hit/feature-pack-forms/server/api/forms-id"
+      handler: "@hit/feature-pack-form-core/server/api/forms-id"
       description: "Get, update, or delete a form"
     - path: /api/forms/[id]/schema
       methods: [GET]
-      handler: "@hit/feature-pack-forms/server/api/forms-id-schema"
+      handler: "@hit/feature-pack-form-core/server/api/forms-id-schema"
       description: "Get a platform-agnostic schema for a form (fields + configs) for non-React clients"
     - path: /api/forms/[id]/entries
       methods: [GET, POST]
-      handler: "@hit/feature-pack-forms/server/api/entries"
+      handler: "@hit/feature-pack-form-core/server/api/entries"
       description: "List entries (GET) or create entry (POST)"
     - path: /api/forms/[id]/entries/[entryId]
       methods: [GET, PUT, DELETE]
-      handler: "@hit/feature-pack-forms/server/api/entries-id"
+      handler: "@hit/feature-pack-form-core/server/api/entries-id"
       description: "Get, update, or delete an entry"
     - path: /api/forms/[id]/acl
       methods: [GET, POST]
-      handler: "@hit/feature-pack-forms/server/api/acl"
+      handler: "@hit/feature-pack-form-core/server/api/acl"
       description: "List ACLs (GET) or create ACL entry (POST) for a form"
     - path: /api/forms/[id]/acl/[aclId]
       methods: [DELETE]
-      handler: "@hit/feature-pack-forms/server/api/acl"
+      handler: "@hit/feature-pack-form-core/server/api/acl"
       description: "Delete an ACL entry"
     - path: /api/forms/linked
       methods: [GET]
-      handler: "@hit/feature-pack-forms/server/api/linked"
+      handler: "@hit/feature-pack-form-core/server/api/linked"
       description: "List published forms linked to an entity via entity_reference fields (dynamic entity tabs)"
 
 requires:
