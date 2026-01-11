@@ -2,6 +2,7 @@
 # Runtime-configurable custom forms (builder + CRUD entries)
 
 name: form-core
+title: System Custom Forms
 description: Runtime Forms feature pack with builder + CRUD entries + search + reference linking
 
 # Route definitions - mapped to React components
