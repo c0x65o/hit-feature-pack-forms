@@ -12,17 +12,17 @@ routes:
     page: FormList
     roles: [admin]
     default_roles_allow: [admin]
-    authz: { entity: forms, verb: read }
+    authz: { entity: forms, verb: read, require_mode: any }
   - path: /forms/new
     page: FormBuilder
     roles: [admin]
     default_roles_allow: [admin]
-    authz: { entity: forms, verb: write, require_create: true }
+    authz: { entity: forms, verb: write, require_create: true, require_mode: any }
   - path: /forms/[id]
     page: FormBuilder
     roles: [admin]
     default_roles_allow: [admin]
-    authz: { entity: forms, verb: write }
+    authz: { entity: forms, verb: write, require_mode: any }
   # Entry routes - accessible based on form ACLs (checked at runtime)
   - path: /forms/[id]/entries
     page: EntryList
