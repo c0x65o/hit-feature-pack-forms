@@ -2,8 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import { useUi } from '@hit/ui-kit';
-import { useServerDataTableState } from '@hit/ui-kit/hooks/useServerDataTableState';
+import { useServerDataTableState, useUi } from '@hit/ui-kit';
 import { useEntries, useForm, useEntryMutations } from '../hooks/useForms';
 
 interface Props {
