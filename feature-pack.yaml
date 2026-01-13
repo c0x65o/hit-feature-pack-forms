@@ -127,10 +127,6 @@ permissions:
       label: "Form-Core Read Scope = Own"
       description: "Read only form-core entities you own."
       default_enabled: false
-    - key: form-core.read.scope.ldd
-      label: "Form-Core Read Scope = LDD"
-      description: "Read form-core entities you own, or that match your L/D/D scope."
-      default_enabled: false
 
     - key: form-core.write.scope.none
       label: "Form-Core Write Scope = None"
@@ -144,10 +140,6 @@ permissions:
       label: "Form-Core Write Scope = Own"
       description: "Edit only form-core entities you own."
       default_enabled: false
-    - key: form-core.write.scope.ldd
-      label: "Form-Core Write Scope = LDD"
-      description: "Edit form-core entities you own, or that match your L/D/D scope."
-      default_enabled: false
 
     - key: form-core.delete.scope.none
       label: "Form-Core Delete Scope = None"
@@ -160,10 +152,6 @@ permissions:
     - key: form-core.delete.scope.own
       label: "Form-Core Delete Scope = Own"
       description: "Delete only form-core entities you own."
-      default_enabled: false
-    - key: form-core.delete.scope.ldd
-      label: "Form-Core Delete Scope = LDD"
-      description: "Delete form-core entities you own, or that match your L/D/D scope."
       default_enabled: false
 
     # Forms (form definitions) - admin-only scope
@@ -180,10 +168,6 @@ permissions:
       label: "Form-Core Forms Read Scope = Own"
       description: "Read only form definitions you own."
       default_enabled: false
-    - key: form-core.forms.read.scope.ldd
-      label: "Form-Core Forms Read Scope = LDD"
-      description: "Read form definitions you own, or that match your L/D/D scope."
-      default_enabled: false
 
     - key: form-core.forms.write.scope.none
       label: "Form-Core Forms Write Scope = None"
@@ -197,10 +181,6 @@ permissions:
       label: "Form-Core Forms Write Scope = Own"
       description: "Edit only form definitions you own."
       default_enabled: false
-    - key: form-core.forms.write.scope.ldd
-      label: "Form-Core Forms Write Scope = LDD"
-      description: "Edit form definitions you own, or that match your L/D/D scope."
-      default_enabled: false
 
     - key: form-core.forms.delete.scope.none
       label: "Form-Core Forms Delete Scope = None"
@@ -213,10 +193,6 @@ permissions:
     - key: form-core.forms.delete.scope.own
       label: "Form-Core Forms Delete Scope = Own"
       description: "Delete only form definitions you own."
-      default_enabled: false
-    - key: form-core.forms.delete.scope.ldd
-      label: "Form-Core Forms Delete Scope = LDD"
-      description: "Delete form definitions you own, or that match your L/D/D scope."
       default_enabled: false
 
     - key: form-core.forms.create
@@ -240,10 +216,6 @@ permissions:
       label: "Form-Core Entries Read Scope = Own"
       description: "Read only form entries for forms you own (subject to form ACLs)."
       default_enabled: false
-    - key: form-core.entries.read.scope.ldd
-      label: "Form-Core Entries Read Scope = LDD"
-      description: "Read form entries for forms you own or that match your L/D/D scope (subject to form ACLs)."
-      default_enabled: false
 
     - key: form-core.entries.write.scope.none
       label: "Form-Core Entries Write Scope = None"
@@ -257,10 +229,6 @@ permissions:
       label: "Form-Core Entries Write Scope = Own"
       description: "Edit only form entries for forms you own (subject to form ACLs)."
       default_enabled: false
-    - key: form-core.entries.write.scope.ldd
-      label: "Form-Core Entries Write Scope = LDD"
-      description: "Edit form entries for forms you own or that match your L/D/D scope (subject to form ACLs)."
-      default_enabled: false
 
     - key: form-core.entries.delete.scope.none
       label: "Form-Core Entries Delete Scope = None"
@@ -273,10 +241,6 @@ permissions:
     - key: form-core.entries.delete.scope.own
       label: "Form-Core Entries Delete Scope = Own"
       description: "Delete only form entries for forms you own (subject to form ACLs)."
-      default_enabled: false
-    - key: form-core.entries.delete.scope.ldd
-      label: "Form-Core Entries Delete Scope = LDD"
-      description: "Delete form entries for forms you own or that match your L/D/D scope (subject to form ACLs)."
       default_enabled: false
 
     - key: form-core.entries.create
