@@ -30,4 +30,6 @@ export const FORM_PERMISSIONS = {
 export { FormAclModal } from './components/FormAclModal';
 export { LinkedEntityTabs } from './components/LinkedEntityTabs';
 export { MetricsPanel } from './components/MetricsPanel';
+// Schema-driven UI helpers
+export { splitLinkedEntityTabsExtra, wrapWithLinkedEntityTabsIfConfigured, entityKeyToFormsEntityKind, } from './schemaDriven/linkedEntityTabsExtra';
 //# sourceMappingURL=index.js.map

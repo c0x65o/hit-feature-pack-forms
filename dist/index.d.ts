@@ -23,4 +23,5 @@ export type FormPermission = keyof typeof FORM_PERMISSIONS;
 export { FormAclModal } from './components/FormAclModal';
 export { LinkedEntityTabs } from './components/LinkedEntityTabs';
 export { MetricsPanel, type MetricsViewMetadata } from './components/MetricsPanel';
+export { splitLinkedEntityTabsExtra, wrapWithLinkedEntityTabsIfConfigured, entityKeyToFormsEntityKind, type LinkedEntityTabsExtraSpec, } from './schemaDriven/linkedEntityTabsExtra';
 //# sourceMappingURL=index.d.ts.map

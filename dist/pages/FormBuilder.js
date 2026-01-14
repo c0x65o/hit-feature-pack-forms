@@ -22,6 +22,43 @@ export function FormBuilder({ id, onNavigate }) {
     const { createForm, saveForm } = useFormMutations();
     const { submitting: saving, error: formError, submit, clearError, setError } = useFormSubmit();
     const { data: allForms } = useForms({ page: 1, pageSize: 200 });
+    // UI specs entity registry (used to make entity_reference truly dynamic instead of hardcoding a few kinds).
+    const [uiSpecEntityKindOptions, setUiSpecEntityKindOptions] = useState([]);
+    useEffect(() => {
+        let cancelled = false;
+        async function loadUiSpecEntities() {
+            try {
+                const res = await fetch('/hit-ui-specs.json', { credentials: 'include' });
+                if (!res.ok)
+                    return;
+                const json = await res.json().catch(() => null);
+                const entities = json && typeof json === 'object' ? json.entities : null;
+                if (!entities || typeof entities !== 'object')
+                    return;
+                const opts = [];
+                for (const [entityKey, spec] of Object.entries(entities)) {
+                    const meta = spec && typeof spec === 'object' ? spec.meta : null;
+                    const titleSingular = meta && typeof meta === 'object' ? String(meta.titleSingular || '') : '';
+                    const title = titleSingular.trim() || String(entityKey);
+                    // Convention: forms entityKind uses `_` not `.` (e.g. `crm.contact` -> `crm_contact`)
+                    const kind = String(entityKey).trim().replace(/\./g, '_');
+                    if (!kind)
+                        continue;
+                    opts.push({ value: kind, label: `${title} (${String(entityKey)})` });
+                }
+                opts.sort((a, b) => a.label.localeCompare(b.label));
+                if (!cancelled)
+                    setUiSpecEntityKindOptions(opts);
+            }
+            catch {
+                // best-effort; ignore
+            }
+        }
+        void loadUiSpecEntities();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     // Table views for entries list
     const tableId = id && !isNew ? `form.${id}` : '';
     const { views, loading: viewsLoading, available: viewsAvailable, createView, updateView, deleteView, refresh: refreshViews, getShares, addShare, removeShare, } = useTableView({ tableId });
@@ -401,7 +438,7 @@ export function FormBuilder({ id, onNavigate }) {
                                                                 },
                                                             };
                                                             setFields(next);
-                                                        } }), "Allow multiple selections"] }), _jsxs("div", { className: "text-xs text-gray-500", children: ["Stored as ", _jsx("code", { children: '{ formId, entryId, label }' }), " (or an array if multi)."] })] })), f.type === 'entity_reference' && (_jsxs("div", { className: "space-y-3", children: [_jsx(Select, { label: "Entity kind", value: String(f.config?.entity?.kind || 'project'), onChange: (v) => {
+                                                        } }), "Allow multiple selections"] }), _jsxs("div", { className: "text-xs text-gray-500", children: ["Stored as ", _jsx("code", { children: '{ formId, entryId, label }' }), " (or an array if multi)."] })] })), f.type === 'entity_reference' && (_jsxs("div", { className: "space-y-3", children: [_jsx(Input, { label: "Entity kind", value: String(f.config?.entity?.kind || 'project'), onChange: (v) => {
                                                     const next = [...fields];
                                                     const prevCfg = next[idx].config || {};
                                                     next[idx] = {
@@ -410,16 +447,32 @@ export function FormBuilder({ id, onNavigate }) {
                                                             ...prevCfg,
                                                             entity: {
                                                                 ...(prevCfg.entity || {}),
-                                                                kind: v || 'project',
+                                                                kind: String(v || '').trim() || 'project',
+                                                            },
+                                                        },
+                                                    };
+                                                    setFields(next);
+                                                }, placeholder: "e.g. crm_contact (from crm.contact)" }), _jsxs("div", { className: "text-xs text-gray-500", children: ["Tip: for schema-driven entities, use ", _jsx("code", { children: "entityKey" }), " with ", _jsx("code", { children: "." }), " replaced by ", _jsx("code", { children: "_" }), " (example: ", _jsx("code", { children: "crm.contact" }), " \u2192 ", _jsx("code", { children: "crm_contact" }), "). Projects use ", _jsx("code", { children: "project" }), "."] }), _jsx(Select, { label: "Quick pick (schema-driven entities)", value: "", onChange: (v) => {
+                                                    const picked = String(v || '').trim();
+                                                    if (!picked)
+                                                        return;
+                                                    const next = [...fields];
+                                                    const prevCfg = next[idx].config || {};
+                                                    next[idx] = {
+                                                        ...next[idx],
+                                                        config: {
+                                                            ...prevCfg,
+                                                            entity: {
+                                                                ...(prevCfg.entity || {}),
+                                                                kind: picked,
                                                             },
                                                         },
                                                     };
                                                     setFields(next);
                                                 }, options: [
-                                                    { value: 'project', label: 'Project' },
-                                                    { value: 'crm_contact', label: 'CRM Contact' },
-                                                    { value: 'crm_company', label: 'CRM Company' },
-                                                    { value: 'crm_opportunity', label: 'CRM Opportunity' },
+                                                    { value: '', label: 'Select…' },
+                                                    { value: 'project', label: 'Project (legacy)' },
+                                                    ...uiSpecEntityKindOptions,
                                                 ] }), _jsxs("label", { className: "text-sm flex items-center gap-2", children: [_jsx("input", { type: "checkbox", checked: Boolean(f.config?.entity?.multi), onChange: (e) => {
                                                             const next = [...fields];
                                                             const prevCfg = next[idx].config || {};
