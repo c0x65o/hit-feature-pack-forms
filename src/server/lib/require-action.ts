@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import type { ActionCheckResult } from '@hit/feature-pack-auth-core/server/lib/action-check';
 import {
   checkActionPermission,
@@ -15,7 +14,7 @@ type FormCoreActionCheckOptions = {
 };
 
 export async function checkFormCoreAction(
-  request: NextRequest,
+  request: Request,
   actionKey: string,
   options?: FormCoreActionCheckOptions
 ): Promise<ActionCheckResult> {
@@ -27,9 +26,9 @@ export async function checkFormCoreAction(
 }
 
 export async function requireFormCoreAction(
-  request: NextRequest,
+  request: Request,
   actionKey: string
-): Promise<NextResponse | null> {
+): Promise<Response | null> {
   const debug = process.env.DEBUG_FORM_CORE_AUTHZ === '1';
   return requireActionPermission(request, actionKey, {
     logPrefix: 'Form-Core',

@@ -4,8 +4,7 @@ import { getDb } from '@/lib/db';
 import { forms, formVersions, formsAcls } from '@/lib/feature-pack-schemas';
 import { and, asc, desc, eq, like, or, sql, type AnyColumn, inArray } from 'drizzle-orm';
 import { extractUserFromRequest, getUserId } from '../auth';
-import { resolveFormCoreScopeMode } from '../lib/scope-mode';
-import { requireFormCoreAction } from '../lib/require-action';
+import { requireFormCoreEntityAuthz } from '../lib/authz';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -43,15 +42,16 @@ export async function GET(request: NextRequest) {
     }
     const userId = user.sub;
     const roles = user.roles || [];
+    const authz = await requireFormCoreEntityAuthz(request, {
+      entityKey: 'form-core.form',
+      op: 'list',
+    });
+    if (authz instanceof Response) return authz;
 
     // Admin mode: return all forms (for form definition management)
     if (adminMode) {
-      // Check create permission for admin mode (form management)
-      const createCheck = await requireFormCoreAction(request, 'form-core.forms.create');
-      if (createCheck) return createCheck;
-      
       // Also check read scope
-      const mode = await resolveFormCoreScopeMode(request, { entity: 'forms', verb: 'read' });
+      const mode = authz.mode;
       if (mode === 'none') {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
       }
@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
       
       // Apply scope-based filtering (explicit branching on own/ldd/any)
       // Note: 'none' mode already handled above with early return
-      if (mode === 'any') {
+      if (mode === 'all') {
         // No scoping - show all forms
-      } else if (mode === 'own' || mode === 'ldd') {
+      } else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
         // Forms don't have LDD fields, so ldd behaves like own (check ownerUserId)
         conditions.push(eq(forms.ownerUserId, userId));
       }
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     // User mode: forms they have READ ACL for OR published forms with ACL disabled
     // Check read scope mode
-    const mode = await resolveFormCoreScopeMode(request, { entity: 'forms', verb: 'read' });
+    const mode = authz.mode;
     
     // Apply scope-based filtering (explicit branching on none/own/ldd/any)
     if (mode === 'none') {
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
     // Build conditions - forms with ACL access OR published forms with ACL disabled
     const accessConditions = [];
     
-    if (mode === 'any') {
+    if (mode === 'all') {
       // No scoping - show all forms (subject to ACL)
       if (aclFormIds.length > 0) {
         accessConditions.push(inArray(forms.id, Array.from(new Set(aclFormIds))));
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
           eq(forms.aclEnabled, false)
         )!
       );
-    } else if (mode === 'own' || mode === 'ldd') {
+    } else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
       // Forms don't have LDD fields, so ldd behaves like own (check ownerUserId)
       // Only show forms owned by user (subject to ACL)
       if (aclFormIds.length > 0) {
@@ -245,13 +245,14 @@ export async function POST(request: NextRequest) {
     if (!user?.sub) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Check create permission
-    const createCheck = await requireFormCoreAction(request, 'form-core.forms.create');
-    if (createCheck) return createCheck;
-    
+    const authz = await requireFormCoreEntityAuthz(request, {
+      entityKey: 'form-core.form',
+      op: 'new',
+    });
+    if (authz instanceof Response) return authz;
+
     // Check write scope mode
-    const mode = await resolveFormCoreScopeMode(request, { entity: 'forms', verb: 'write' });
+    const mode = authz.mode;
     if (mode === 'none') {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }

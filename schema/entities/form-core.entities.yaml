@@ -26,6 +26,10 @@ entities:
         roles: [admin]
         default_roles_allow: [admin]
         authz: { entity: forms, verb: write, require_mode: any }
+      delete:
+        roles: [admin]
+        default_roles_allow: [admin]
+        authz: { entity: forms, verb: delete, require_mode: any }
     list:
       widget: forms.runtime
       widgetMode: forms.list
@@ -63,6 +67,9 @@ entities:
       edit:
         roles: []
         authz: { entity: entries, verb: write }
+      delete:
+        roles: []
+        authz: { entity: entries, verb: delete }
     list:
       widget: forms.runtime
       widgetMode: entries.list

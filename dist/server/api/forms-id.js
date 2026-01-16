@@ -5,7 +5,7 @@ import { forms, formVersions, formFields, formEntries, formEntryHistory, formsAc
 import { and, desc, eq, or } from 'drizzle-orm';
 import { extractUserFromRequest } from '../auth';
 import { FORM_PERMISSIONS } from '../../schema/forms';
-import { resolveFormCoreScopeMode } from '../lib/scope-mode';
+import { requireFormCoreEntityAuthz } from '../lib/authz';
 /**
  * Check if user has a specific ACL permission on a form
  */
@@ -46,8 +46,14 @@ export async function GET(request) {
         if (!user?.sub) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const authz = await requireFormCoreEntityAuthz(request, {
+            entityKey: 'form-core.form',
+            op: 'detail',
+        });
+        if (authz instanceof Response)
+            return authz;
         // Check read scope mode
-        const mode = await resolveFormCoreScopeMode(request, { entity: 'forms', verb: 'read' });
+        const mode = authz.mode;
         if (mode === 'none') {
             return NextResponse.json({ error: 'Form not found' }, { status: 404 });
         }
@@ -61,7 +67,7 @@ export async function GET(request) {
             return NextResponse.json({ error: 'Form not found' }, { status: 404 });
         }
         // Apply scope-based access control (explicit branching on none/own/ldd/any)
-        if (mode === 'any') {
+        if (mode === 'all') {
             // No scoping - check ACL if enabled
             if (form.aclEnabled) {
                 const hasAccess = await hasFormPermission(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.READ);
@@ -76,7 +82,7 @@ export async function GET(request) {
                 }
             }
         }
-        else if (mode === 'own' || mode === 'ldd') {
+        else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
             // Forms don't have LDD fields, so ldd behaves like own (check ownerUserId)
             if (form.ownerUserId !== user.sub) {
                 return NextResponse.json({ error: 'Form not found' }, { status: 404 });
@@ -131,8 +137,14 @@ export async function PUT(request) {
         if (!user?.sub) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const authz = await requireFormCoreEntityAuthz(request, {
+            entityKey: 'form-core.form',
+            op: 'edit',
+        });
+        if (authz instanceof Response)
+            return authz;
         // Check write scope mode
-        const mode = await resolveFormCoreScopeMode(request, { entity: 'forms', verb: 'write' });
+        const mode = authz.mode;
         if (mode === 'none') {
             return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
         }
@@ -146,10 +158,10 @@ export async function PUT(request) {
             return NextResponse.json({ error: 'Form not found' }, { status: 404 });
         }
         // Apply scope-based access control (explicit branching on none/own/ldd/any)
-        if (mode === 'any') {
+        if (mode === 'all') {
             // No scoping - allow edit
         }
-        else if (mode === 'own' || mode === 'ldd') {
+        else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
             // Forms don't have LDD fields, so ldd behaves like own (check ownerUserId)
             if (existingForm.ownerUserId !== user.sub) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
@@ -259,8 +271,14 @@ export async function DELETE(request) {
         if (!user?.sub) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const authz = await requireFormCoreEntityAuthz(request, {
+            entityKey: 'form-core.form',
+            op: 'delete',
+        });
+        if (authz instanceof Response)
+            return authz;
         // Check delete scope mode
-        const mode = await resolveFormCoreScopeMode(request, { entity: 'forms', verb: 'delete' });
+        const mode = authz.mode;
         if (mode === 'none') {
             return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
         }
@@ -274,10 +292,10 @@ export async function DELETE(request) {
             return NextResponse.json({ error: 'Form not found' }, { status: 404 });
         }
         // Apply scope-based access control (explicit branching on none/own/ldd/any)
-        if (mode === 'any') {
+        if (mode === 'all') {
             // No scoping - allow delete
         }
-        else if (mode === 'own' || mode === 'ldd') {
+        else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
             // Forms don't have LDD fields, so ldd behaves like own (check ownerUserId)
             if (existingForm.ownerUserId !== user.sub) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });

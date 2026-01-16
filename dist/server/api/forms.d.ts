@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 export declare const dynamic = "force-dynamic";
 export declare const runtime = "nodejs";
 /**
@@ -8,10 +8,10 @@ export declare const runtime = "nodejs";
  * - admin=true: List ALL forms (requires admin role) - for form definition management
  * - default: List forms user has READ ACL for - for nav and entry access
  */
-export declare function GET(request: NextRequest): Promise<NextResponse<unknown>>;
+export declare function GET(request: NextRequest): Promise<Response>;
 /**
  * POST /api/forms
  * Create a new form - requires admin role
  */
-export declare function POST(request: NextRequest): Promise<NextResponse<any>>;
+export declare function POST(request: NextRequest): Promise<Response>;
 //# sourceMappingURL=forms.d.ts.map

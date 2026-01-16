@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import type { ActionCheckResult } from '@hit/feature-pack-auth-core/server/lib/action-check';
 type FormCoreActionCheckOptions = {
     /**
@@ -8,7 +7,7 @@ type FormCoreActionCheckOptions = {
      */
     debug?: boolean;
 };
-export declare function checkFormCoreAction(request: NextRequest, actionKey: string, options?: FormCoreActionCheckOptions): Promise<ActionCheckResult>;
-export declare function requireFormCoreAction(request: NextRequest, actionKey: string): Promise<NextResponse | null>;
+export declare function checkFormCoreAction(request: Request, actionKey: string, options?: FormCoreActionCheckOptions): Promise<ActionCheckResult>;
+export declare function requireFormCoreAction(request: Request, actionKey: string): Promise<Response | null>;
 export {};
 //# sourceMappingURL=require-action.d.ts.map

@@ -5,7 +5,7 @@ import { forms, formEntries, formEntryHistory, formsAcls } from '@/lib/feature-p
 import { and, eq, or, sql } from 'drizzle-orm';
 import { extractUserFromRequest } from '../auth';
 import { FORM_PERMISSIONS } from '../../schema/forms';
-import { resolveFormCoreScopeMode } from '../lib/scope-mode';
+import { requireFormCoreEntityAuthz } from '../lib/authz';
 /**
  * Check if user has a specific ACL permission on a form
  */
@@ -70,8 +70,14 @@ export async function GET(request) {
         if (!user?.sub) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const authz = await requireFormCoreEntityAuthz(request, {
+            entityKey: 'form-core.entry',
+            op: 'detail',
+        });
+        if (authz instanceof Response)
+            return authz;
         // Check read scope mode for entries
-        const mode = await resolveFormCoreScopeMode(request, { entity: 'entries', verb: 'read' });
+        const mode = authz.mode;
         if (mode === 'none') {
             return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
         }
@@ -86,7 +92,7 @@ export async function GET(request) {
         }
         // Apply scope-based access control (explicit branching on none/own/ldd/any)
         // Entries are scoped by form ownership, then ACLs apply
-        if (mode === 'any') {
+        if (mode === 'all') {
             // No scoping - check ACL if enabled
             if (form.aclEnabled) {
                 const hasAccess = await hasFormPermission(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.READ);
@@ -101,7 +107,7 @@ export async function GET(request) {
                 }
             }
         }
-        else if (mode === 'own' || mode === 'ldd') {
+        else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
             // Forms don't have LDD fields, so ldd behaves like own (check form ownerUserId)
             if (form.ownerUserId !== user.sub) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
@@ -146,9 +152,15 @@ export async function PUT(request) {
         if (!user?.sub) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const authz = await requireFormCoreEntityAuthz(request, {
+            entityKey: 'form-core.entry',
+            op: 'edit',
+        });
+        if (authz instanceof Response)
+            return authz;
         const body = await request.json();
         // Check write scope mode for entries
-        const mode = await resolveFormCoreScopeMode(request, { entity: 'entries', verb: 'write' });
+        const mode = authz.mode;
         if (mode === 'none') {
             return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
         }
@@ -163,7 +175,7 @@ export async function PUT(request) {
         }
         // Apply scope-based access control (explicit branching on none/own/ldd/any)
         // Entries are scoped by form ownership, then ACLs apply
-        if (mode === 'any') {
+        if (mode === 'all') {
             // No scoping - check ACL if enabled
             if (form.aclEnabled) {
                 const hasAccess = await hasFormPermission(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.WRITE);
@@ -178,7 +190,7 @@ export async function PUT(request) {
                 }
             }
         }
-        else if (mode === 'own' || mode === 'ldd') {
+        else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
             // Forms don't have LDD fields, so ldd behaves like own (check form ownerUserId)
             if (form.ownerUserId !== user.sub) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
@@ -255,8 +267,14 @@ export async function DELETE(request) {
         if (!user?.sub) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const authz = await requireFormCoreEntityAuthz(request, {
+            entityKey: 'form-core.entry',
+            op: 'delete',
+        });
+        if (authz instanceof Response)
+            return authz;
         // Check delete scope mode for entries
-        const mode = await resolveFormCoreScopeMode(request, { entity: 'entries', verb: 'delete' });
+        const mode = authz.mode;
         if (mode === 'none') {
             return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
         }
@@ -271,7 +289,7 @@ export async function DELETE(request) {
         }
         // Apply scope-based access control (explicit branching on none/own/ldd/any)
         // Entries are scoped by form ownership, then ACLs apply
-        if (mode === 'any') {
+        if (mode === 'all') {
             // No scoping - check ACL if enabled
             if (form.aclEnabled) {
                 const hasAccess = await hasFormPermission(db, formId, user.sub, user.roles || [], FORM_PERMISSIONS.DELETE);
@@ -286,7 +304,7 @@ export async function DELETE(request) {
                 }
             }
         }
-        else if (mode === 'own' || mode === 'ldd') {
+        else if (mode === 'own' || mode === 'ldd_any' || mode === 'ldd_all') {
             // Forms don't have LDD fields, so ldd behaves like own (check form ownerUserId)
             if (form.ownerUserId !== user.sub) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
