@@ -7,7 +7,7 @@
  * Principal Types for ACL
  * Shared enum used across all feature packs (forms, vault, notepad, etc.)
  */
-export declare const principalTypeEnum: import("drizzle-orm/pg-core").PgEnum<["user", "group", "role"]>;
+export declare const principalTypeEnum: import("drizzle-orm/pg-core").PgEnum<["user", "group", "role", "location", "division", "department"]>;
 export declare const forms: import("drizzle-orm/pg-core").PgTableWithColumns<{
     name: "forms";
     schema: undefined;
@@ -1049,14 +1049,14 @@ export declare const formsAcls: import("drizzle-orm/pg-core").PgTableWithColumns
             tableName: "forms_acls";
             dataType: "string";
             columnType: "PgEnumColumn";
-            data: "role" | "user" | "group";
+            data: "role" | "user" | "group" | "location" | "division" | "department";
             driverParam: string;
             notNull: true;
             hasDefault: false;
             isPrimaryKey: false;
             isAutoincrement: false;
             hasRuntimeDefault: false;
-            enumValues: ["user", "group", "role"];
+            enumValues: ["user", "group", "role", "location", "division", "department"];
             baseColumn: never;
             identity: undefined;
             generated: undefined;
